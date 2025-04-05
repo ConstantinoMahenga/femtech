@@ -13,14 +13,35 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para preencher automaticamente seu endereço no cadastro."
+        
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION" 
+      ]
     },
+
+
+    "plugins": [
+    [
+      "expo-location",
+      {
+        "locationWhenInUsePermission": "Precisamos da sua localização para preencher automaticamente seu endereço no cadastro."
+      }
+    ]
+  ]
+,
+
+    
     "web": {
       "favicon": "./assets/favicon.png"
     }
