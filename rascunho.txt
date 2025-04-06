@@ -1,7 +1,8 @@
-Quero validacao de email usando firebase, fazer o login e trocar de ola, usuaria(para pessoa autenticada) e veja sobre a primeira e ultima imagagem nao aparece
-import React, { useState } from 'react';
+tenho outro tipo de usuario "medico" eu quero ao fazer login cair no medico ou paciente dependendo de quem esta a logar, porem eu criei home separado para cada um
+login
+// LoginScreen.jsx
+import React, { useState, useRef } from 'react'; // Adicionado useRef
 import {
-  StyleSheet,
   View,
   Text,
   TextInput,
@@ -11,80 +12,97 @@ import {
   KeyboardAvoidingView,
   Platform,
   StatusBar,
-  Alert, // Para mostrar mensagens simples
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
-// Importar o ícone específico de FontAwesome5
 import IconFA5 from 'react-native-vector-icons/FontAwesome5';
 
-// Definindo cores do tema (consistente com a tela de cadastro)
-const theme = {
-  colors: {
-    primary: '#FF69B4', // Rosa vibrante
-    text: '#333',
-    placeholder: '#888',
-    background: '#fff',
-    border: '#ccc',
-    borderFocused: '#FF69B4', // Cor da borda focada (rosa)
-    white: '#fff',
-  },
-};
+// Importa o hook useAuth do contexto local (VERIFIQUE O CAMINHO!)
+import { useAuth } from './context/AuthContext';
 
-// Componente reutilizado para o ícone principal (adaptado do AvatarIcon)
+// Importa funções e instância do Firebase Auth (VERIFIQUE O CAMINHO!)
+import { signInWithEmailAndPassword } from 'firebase/auth';
+import { auth } from './firebaseconfig';
+
+// Importa os estilos e o tema do arquivo separado
+import styles, { theme } from './style/LoginScreen.styles.js';
+
+// --- COMPONENTE HeaderIcon (movido para cá) ---
+// Recebe estilos como prop para desacoplar
 const HeaderIcon = ({ iconName, size = 60, color = theme.colors.white, backgroundColor = theme.colors.primary }) => (
+  // Usa o estilo importado
   <View style={[styles.headerIconContainer, { width: size, height: size, borderRadius: size / 2, backgroundColor }]}>
     <IconFA5 name={iconName} size={size * 0.55} color={color} />
   </View>
 );
 
-function LoginScreen({ navigation }) { // Recebe navigation para poder navegar
+// --- COMPONENTE PRINCIPAL ---
+function LoginScreen({ navigation }) {
   // --- ESTADOS ---
-  const [email, setEmail] = useState(''); // Mudado de nome completo para email (mais comum para login)
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [focusedInput, setFocusedInput] = useState(null); // Para controle de foco
+  const [focusedInput, setFocusedInput] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // --- REFERÊNCIAS ---
+  const passwordInputRef = useRef(null); // Referência para o input de senha
+
+  // --- CONTEXTO ---
+  const { login: loginContext } = useAuth();
 
   // --- HANDLERS ---
-  const handleLogin = () => {
-    // Validação básica
-    if (!email || !password) {
-      Alert.alert('Erro', 'Por favor, preencha o e-mail e a senha.');
+  const handleLogin = async () => {
+    if (!email.trim() || !password) {
+      Alert.alert('Campos Vazios', 'Por favor, preencha o e-mail e a senha.');
       return;
     }
+    setIsLoading(true);
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+      const firebaseUser = userCredential.user;
+      console.log('Login com Firebase bem-sucedido:', firebaseUser.uid);
 
-    // --- Lógica de Login (Simulação) ---
-    // Aqui você chamaria sua API de autenticação
-    console.log('Tentativa de Login com:', { email, password });
-    Alert.alert('Sucesso (Simulação)', 'Login realizado com sucesso!');
+      const userDataForContext = {
+        id: firebaseUser.uid,
+        name: firebaseUser.displayName || email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Usuário(a)',
+        email: firebaseUser.email,
+      };
 
-    // Exemplo: Navegar para a tela principal após o login
-      if (navigation) {
-         navigation.replace('Home'); // Usa replace para não poder voltar para Login
-     }
-     
-    // --- Fim da Simulação ---
+      await loginContext(userDataForContext);
+      // Navegação implícita pelo AuthProvider
+
+    } catch (error) {
+      console.error("Erro no login com Firebase:", error.code, error.message);
+      let friendlyMessage = 'Usuario ou senha incorreta. Tente novamente.';
+      switch (error.code) {
+        case 'auth/invalid-email': friendlyMessage = 'O endereço de e-mail não é válido.'; break;
+        case 'auth/user-disabled': friendlyMessage = 'Este usuário foi desabilitado.'; break;
+        case 'auth/user-not-found': friendlyMessage = 'Nenhum usuário encontrado com este e-mail.'; break;
+        case 'auth/wrong-password': friendlyMessage = 'Senha incorreta. Por favor, verifique sua senha.'; break;
+        case 'auth/too-many-requests': friendlyMessage = 'Acesso bloqueado devido a muitas tentativas. Tente mais tarde.'; break;
+      }
+      Alert.alert('Falha no Login', friendlyMessage);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleForgotPassword = () => {
     console.log('Clicou em "Esqueci a senha"');
-    // Aqui você navegaria para a tela de recuperação de senha
-    // if (navigation) {
-    //   navigation.navigate('ForgotPassword');
-    // }
-     Alert.alert('Info', 'Funcionalidade "Esqueci a senha" a ser implementada.');
+    Alert.alert('Indisponível', 'A recuperação de senha ainda não foi implementada.');
+    // navigation.navigate('ForgotPassword'); // Se existir a tela
   };
 
-  // Função para ir para a tela de cadastro (Opcional, mas útil)
-   const goToRegister = () => {
+  const goToRegister = () => {
     if (navigation) {
-      navigation.navigate('Register'); // Navega para a tela de Registro
-    } else {
-      console.warn("Navegação para Registro não disponível.");
+      navigation.navigate('Register'); // Nome da rota de cadastro
     }
   };
-
 
   const handleFocus = (inputName) => setFocusedInput(inputName);
   const handleBlur = () => setFocusedInput(null);
 
+  // --- RENDERIZAÇÃO ---
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
@@ -92,65 +110,97 @@ function LoginScreen({ navigation }) { // Recebe navigation para poder navegar
         behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={styles.keyboardAvoiding}
       >
-        <ScrollView contentContainerStyle={styles.scrollViewContent}>
+        <ScrollView
+            contentContainerStyle={styles.scrollViewContent}
+            keyboardShouldPersistTaps="handled" // Fecha teclado ao tocar fora
+        >
           <View style={styles.container}>
-            {/* Ícone Médico (Mala com +) */}
+            {/* Ícone (agora definido neste arquivo) */}
             <HeaderIcon iconName="briefcase-medical" />
 
             <Text style={styles.title}>Login</Text>
 
             <View style={styles.form}>
-              {/* Campo E-mail */}
               <TextInput
                 style={[
                   styles.input,
-                  focusedInput === 'email' && styles.inputFocused
+                  focusedInput === 'email' && styles.inputFocused,
+                  isLoading && styles.inputDisabled // Aplica estilo desabilitado
                 ]}
-                placeholder="E-mail" // Alterado de "Nome Completo"
+                placeholder="E-mail"
                 placeholderTextColor={theme.colors.placeholder}
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
-                textContentType="emailAddress" // Importante para autofill
+                textContentType="emailAddress"
                 autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
                 onFocus={() => handleFocus('email')}
                 onBlur={handleBlur}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordInputRef.current?.focus()} // Foca no próximo input
+                editable={!isLoading} // Desabilita quando carregando
               />
 
-              {/* Campo Senha */}
               <TextInput
+                ref={passwordInputRef} // Aplica a referência
                 style={[
                   styles.input,
-                  focusedInput === 'password' && styles.inputFocused
+                  focusedInput === 'password' && styles.inputFocused,
+                  isLoading && styles.inputDisabled // Aplica estilo desabilitado
                 ]}
                 placeholder="Senha"
                 placeholderTextColor={theme.colors.placeholder}
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry={true} // Esconde a senha
-                textContentType="password" // Importante para autofill
+                secureTextEntry={true}
+                textContentType="password"
+                autoComplete="password"
                 onFocus={() => handleFocus('password')}
                 onBlur={handleBlur}
+                returnKeyType="done" // Botão "Concluído" ou similar no teclado
+                onSubmitEditing={handleLogin} // Tenta logar ao pressionar "done"
+                editable={!isLoading} // Desabilita quando carregando
               />
 
-              {/* Link Esqueci a Senha */}
               <TouchableOpacity
                 style={styles.forgotPasswordContainer}
                 onPress={handleForgotPassword}
+                disabled={isLoading} // Desabilita quando carregando
               >
-                <Text style={styles.forgotPasswordText}>Esqueci a senha?</Text>
+                <Text style={[
+                    styles.forgotPasswordText,
+                    isLoading && styles.linkDisabled // Aplica estilo desabilitado
+                ]}>
+                    Esqueci a senha?
+                </Text>
               </TouchableOpacity>
 
-              {/* Botão Entrar */}
-              <TouchableOpacity style={styles.button} onPress={handleLogin}>
-                <Text style={styles.buttonText}>Entrar</Text>
+              <TouchableOpacity
+                style={[styles.button, isLoading && styles.buttonDisabled]} // Estilo desabilitado
+                onPress={handleLogin}
+                disabled={isLoading} // Desabilita toque
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={theme.colors.white} />
+                ) : (
+                  <Text style={styles.buttonText}>Entrar</Text>
+                )}
               </TouchableOpacity>
 
-              {/* Link para Cadastro (Opcional) */}
-               <TouchableOpacity style={styles.registerLinkContainer} onPress={goToRegister}>
-                 <Text style={styles.registerLinkText}>Não tem uma conta? Cadastre-se</Text>
+              <TouchableOpacity
+                 style={styles.registerLinkContainer}
+                 onPress={goToRegister}
+                 disabled={isLoading} // Desabilita quando carregando
+                >
+                 <Text style={[
+                    styles.registerLinkText,
+                    isLoading && styles.linkDisabled // Aplica estilo desabilitado
+                ]}>
+                    Não tem uma conta? Cadastre-se
+                 </Text>
                </TouchableOpacity>
-
             </View>
           </View>
         </ScrollView>
@@ -159,105 +209,187 @@ function LoginScreen({ navigation }) { // Recebe navigation para poder navegar
   );
 }
 
+// --- EXPORTAÇÃO ---
+export default LoginScreen;
+
+home medico
+import React from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  SafeAreaView,
+  ScrollView, // Mantido caso adicione mais info depois
+  StatusBar,
+  Platform,
+} from 'react-native';
+import Icon from 'react-native-vector-icons/Feather'; // Ícones ainda usados para detalhes
+
+// --- TEMA (Padrão Rosa consistente) ---
+const theme = {
+  colors: {
+    primary: '#FF69B4', // Rosa Principal
+    white: '#fff',
+    text: '#333',
+    textSecondary: '#666',
+    textMuted: '#888',
+    placeholder: '#aaa',
+    background: '#f7f7f7', // Fundo geral da tela
+    border: '#eee',
+    cardBackground: '#fff', // Fundo do card de perfil
+  },
+  fonts: {
+    regular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    bold: Platform.OS === 'ios' ? 'System' : 'sans-serif-bold',
+  }
+};
+
+// --- DADOS FAKE DO USUÁRIO (Sem a URL da imagem agora) ---
+const currentUserData = {
+    name: 'Maria Clara Santos',
+    email: 'm.clara.santos@email.com',
+    phone: '(11) 98765-4321',
+};
+
+// --- COMPONENTE DA TELA MEU PERFIL (Simplificado) ---
+function MyProfileScreen({ navigation }) {
+  // Botão e função de editar foram removidos
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Card Principal com Informações */}
+        <View style={styles.profileCard}>
+
+          {/* Nome do Usuário (agora no topo) */}
+          <Text style={styles.profileName}>{currentUserData.name}</Text>
+
+          {/* Linha Separadora Sutil */}
+          <View style={styles.separator} />
+
+          {/* Detalhes: Email e Telefone */}
+          <ProfileDetailItem
+            icon="mail"
+            label="Email"
+            value={currentUserData.email}
+          />
+          <ProfileDetailItem
+            icon="phone"
+            label="Telefone"
+            value={currentUserData.phone}
+            // Último item, podemos remover marginBottom se não houver mais nada abaixo
+            isLastItem={true}
+          />
+
+          {/* Botão Editar Perfil REMOVIDO */}
+          {/* Separador após o botão REMOVIDO */}
+
+        </View>
+
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+// --- Componente Auxiliar para Item de Detalhe (Ícone, Label, Valor) ---
+// Adicionado 'isLastItem' opcional para controlar margem inferior
+const ProfileDetailItem = ({ icon, label, value, isLastItem = false }) => (
+  <View style={[styles.detailItem, isLastItem && styles.lastDetailItem]}>
+    <Icon name={icon} size={20} color={theme.colors.primary} style={styles.detailIcon} />
+    <View style={styles.detailTextContainer}>
+      <Text style={styles.detailLabel}>{label}</Text>
+      <Text style={styles.detailValue} selectable={true}>{value}</Text>
+    </View>
+  </View>
+);
+
+
+// --- ESTILOS (Ajustados) ---
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: theme.colors.background,
   },
-  keyboardAvoiding: {
+  scrollView: {
     flex: 1,
   },
-  scrollViewContent: {
-    flexGrow: 1,
-    justifyContent: 'center', // Centraliza o conteúdo verticalmente
-  },
-  container: {
-    alignItems: 'center', // Centraliza itens horizontalmente
-    paddingHorizontal: 30, // Aumentei um pouco o padding lateral
-    paddingVertical: 40,
-  },
-  headerIconContainer: {
-    marginBottom: 25, // Espaço abaixo do ícone
-    justifyContent: 'center',
-    alignItems: 'center',
-    // Sombra sutil (opcional)
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 6,
-  },
-  title: {
-    fontSize: 28, // Um pouco maior para destaque
-    fontWeight: 'bold',
-    color: theme.colors.text,
-    marginBottom: 30, // Mais espaço abaixo do título
-  },
-  form: {
-    width: '100%', // Ocupa toda a largura do container
-  },
-  input: {
-    backgroundColor: theme.colors.white,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 8,
+  scrollContent: {
+    paddingTop: 30,
+    paddingBottom: 30,
     paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-    color: theme.colors.text,
-    marginBottom: 15,
-    width: '100%',
   },
-  inputFocused: {
-    borderColor: theme.colors.borderFocused, // Borda rosa ao focar
-    borderWidth: 1.5,
-  },
-  forgotPasswordContainer: {
-    alignSelf: 'flex-end', // Alinha o link à direita
-    marginBottom: 20, // Espaço antes do botão Entrar
-  },
-  forgotPasswordText: {
-    color: theme.colors.primary, // Cor rosa
-    fontSize: 14,
-    textDecorationLine: 'underline', // Sublinhado para indicar link
-  },
-  button: {
-    backgroundColor: theme.colors.primary, // Fundo rosa
-    paddingVertical: 14, // Botão um pouco maior
-    paddingHorizontal: 20,
-    borderRadius: 25, // Bordas arredondadas
-    alignItems: 'center',
-    justifyContent: 'center',
-    width: '100%', // Botão ocupa toda a largura
-    marginBottom: 20, // Espaço abaixo do botão
-    // Sombra
+  profileCard: {
+    backgroundColor: theme.colors.cardBackground,
+    borderRadius: 12,
+    paddingVertical: 30, // Padding vertical mantido ou ajustado
+    paddingHorizontal: 25, // Padding horizontal
+    // alignItems removido pois não precisamos mais centralizar a imagem
+    elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 3,
-    elevation: 5,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
   },
-  buttonText: {
-    color: theme.colors.white, // Texto branco
+  // Estilo profileImage REMOVIDO
+  profileName: {
+    fontSize: 24,
+    fontFamily: theme.fonts.bold,
+    fontWeight: Platform.OS === 'android' ? 'bold' : '600',
+    color: theme.colors.text,
+    marginBottom: 25, // Espaço antes do primeiro separador
+    textAlign: 'center', // Mantém o nome centralizado
+  },
+  separator: {
+    height: 1,
+    backgroundColor: theme.colors.border,
+    width: '100%',
+    marginVertical: 20, // Espaço antes e depois dos detalhes
+  },
+  detailItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    width: '100%',
+    marginBottom: 18, // Espaço padrão entre itens
+  },
+  lastDetailItem: { // Remove margem inferior do último item
+      marginBottom: 0,
+  },
+  detailIcon: {
+    marginRight: 18,
+    marginTop: 3,
+    width: 20,
+  },
+  detailTextContainer: {
+    flex: 1,
+  },
+  detailLabel: {
+    fontSize: 13,
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.textMuted,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  detailValue: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontFamily: theme.fonts.regular,
+    color: theme.colors.text,
+    lineHeight: 22,
   },
-  registerLinkContainer: {
-     marginTop: 15, // Espaço acima do link de cadastro
-     alignItems: 'center',
-  },
-  registerLinkText: {
-     color: theme.colors.primary, // Cor rosa
-     fontSize: 14,
-     textDecorationLine: 'underline',
-  },
+  // Estilos editButton e editButtonText REMOVIDOS
 });
 
-export default LoginScreen;
-
-import React, { useState, useEffect, useRef } from 'react'; // Importa hooks necessários
+export default MyProfileScreen;
+home paciente
+// DashboardScreen.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  StyleSheet,
   View,
   Text,
   TextInput,
@@ -266,217 +398,236 @@ import {
   ScrollView,
   Image,
   StatusBar,
-  Dimensions,
-  Platform,
+  Dimensions, // Mantido aqui para calcular o índice do slide, se necessário
+  Alert
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import { useAuth } from '../../context/AuthContext';
 
-// --- TEMA ---
-const theme = {
-  colors: {
-    primary: '#FF69B4', // Rosa vibrante
-    white: '#fff',
-    text: '#333',
-    textSecondary: '#666',
-    placeholder: '#999',
-    background: '#f7f7f7',
-    border: '#eee',
-    cardBackground: '#fff',
-    activeCategoryText: '#fff', // Cor do texto da categoria ativa
-    inactiveCategoryBackground: '#f0f0f0', // Fundo da categoria inativa
-  },
-  fonts: {
-    // Verifique se os nomes das fontes estão corretos e configurados
-    regular: 'WinkySans-Regular',
-    bold: 'WinkySans-Bold',
-    systemRegular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    systemBold: Platform.OS === 'ios' ? 'System' : 'sans-serif-bold',
-  }
-};
+// Importa os estilos e o tema do arquivo separado
+import styles, { theme } from '../../style/DashboardScreen.styles';
 
-// --- DADOS ---
+// Constantes específicas do componente (URLs, categorias)
 const flagImageUrl = 'https://dm0qx8t0i9gc9.cloudfront.net/thumbnails/video/SNc_bPaMeiw63zp8r/realistic-beautiful-mozambique-flag-4k_btb1ylatee_thumbnail-1080_01.png';
-const userName = "Usuária"; // Virá do login/estado global
 
-// Categorias Femtech (Exemplo)
 const femtechCategories = [
-    'Ciclo Menstrual',
-    'Gravidez',
-    'Fertilidade',
-    'Menopausa',
-    'Bem-Estar Íntimo',
-    'Doenças Comuns',
-    'Prevenção', // Nome mais curto
-    'Saúde Mental',
-    'Nutrição', // Adicionando mais exemplos
-    'Exercícios',
+  'Ciclo Menstrual', 'Gravidez', 'Fertilidade', 'Menopausa',
+  'Bem-Estar Íntimo', 'Doenças Comuns', 'Prevenção',
+  'Saúde Mental', 'Nutrição', 'Exercícios',
 ];
 
-// URLs das Imagens do Slider (Use URLs reais)
 const sliderImageUrls = [
-  'https://images.unsplash.com/photo-1581091019961-99f3380f5f39?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
+  'https://th.bing.com/th/id/OIP.DQVPwPyKfwa7sbZHCGgsRQHaEK?rs=1&pid=ImgDetMain',
   'https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
   'https://images.unsplash.com/photo-1512678080530-7760d81faba6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
   'https://images.unsplash.com/photo-1607619056574-7b8f352a5d6e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
 ];
 
-// Dimensões da Tela
+// Pega a largura da tela para cálculos de scroll do slider
 const { width: screenWidth } = Dimensions.get('window');
 
-// --- COMPONENTE ---
 function DashboardScreen({ navigation }) {
   const [searchText, setSearchText] = useState('');
-  // Estado para categoria ativa (inicia com a primeira)
   const [activeCategory, setActiveCategory] = useState(femtechCategories[0]);
-  // Estado e Ref para o slider automático
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
-  const sliderRef = useRef(null); // Ref para controlar o ScrollView do slider
+  const sliderRef = useRef(null);
 
-  // --- Efeito para Slider Automático ---
+  const { user, logout } = useAuth();
+  const userName = user?.name || 'Usuário(a)'; // Nome padrão caso user seja null/undefined
+
+  // Efeito para auto-scroll do slider
   useEffect(() => {
-    if (sliderImageUrls.length <= 1) return; // Não faz nada se tiver 1 ou 0 imagens
+    if (sliderImageUrls.length <= 1) return; // Não faz auto-scroll se tiver 1 ou 0 imagens
 
     const intervalId = setInterval(() => {
       setActiveSlideIndex(prevIndex => {
-        const nextIndex = (prevIndex + 1) % sliderImageUrls.length; // Calcula próximo índice com loop
-        // Comando para rolar o ScrollView programaticamente
+        const nextIndex = (prevIndex + 1) % sliderImageUrls.length;
         if (sliderRef.current) {
-          sliderRef.current.scrollTo({
-            x: nextIndex * screenWidth, // Posição X da próxima imagem (largura da tela)
-            animated: true, // Animação suave
-          });
+          // Anima o scroll para o próximo slide
+          sliderRef.current.scrollTo({ x: nextIndex * screenWidth, animated: true });
         }
-        return nextIndex; // Atualiza o estado do índice
+        return nextIndex; // Atualiza o índice ativo
       });
-    }, 5000); // Intervalo de 5 segundos
+    }, 5000); // Muda a cada 5 segundos
 
-    // Função de limpeza que será executada quando o componente for desmontado
+    // Limpa o intervalo quando o componente desmontar
     return () => clearInterval(intervalId);
-  }, [sliderImageUrls.length]); // Executa o efeito novamente se o número de imagens mudar
+  }, [sliderImageUrls.length]); // Dependência: reexecuta se o número de imagens mudar
 
-  // --- Handlers ---
+  // Função para lidar com a pesquisa (ação de submit ou clique no ícone)
   const handleSearch = () => {
-    console.log('Pesquisando por:', searchText);
-    // Adicionar lógica de busca
-  };
-
-  const handleCategoryPress = (category) => {
-      console.log('Categoria selecionada:', category);
-      setActiveCategory(category); // Define a categoria clicada como ativa
-      // Adicionar navegação ou filtro baseado na categoria
-  };
-
-  // Função para atualizar o índice ativo se o usuário rolar o slider manualmente
-  const onScrollEnd = (event) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const newIndex = Math.round(contentOffsetX / screenWidth);
-    if (newIndex !== activeSlideIndex) {
-        setActiveSlideIndex(newIndex);
+    if (searchText.trim()) { // Só pesquisa se houver texto (ignorando espaços em branco)
+        console.log('Pesquisando por:', searchText);
+        // Aqui você implementaria a lógica de navegação ou busca real
+        // Ex: navigation.navigate('SearchResults', { query: searchText });
+    } else {
+        console.log('Campo de pesquisa vazio.');
     }
   };
 
-  // --- RENDER ---
+  // Função para lidar com o clique numa categoria
+  const handleCategoryPress = (category) => {
+    console.log('Categoria selecionada:', category);
+    setActiveCategory(category);
+    // Aqui você poderia carregar conteúdo específico da categoria, etc.
+  };
+
+  // Função chamada ao final do scroll manual do slider
+  const onScrollEnd = (event) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    // Calcula o novo índice baseado na posição do scroll e largura da tela
+    const newIndex = Math.round(contentOffsetX / screenWidth);
+    if (newIndex !== activeSlideIndex) {
+      setActiveSlideIndex(newIndex); // Atualiza o índice ativo se mudou
+    }
+  };
+
+  // Função para mostrar confirmação e fazer logout
+  const handleLogout = () => {
+    Alert.alert(
+      "Sair", // Título do Alerta
+      "Tem certeza que deseja sair da sua conta?", // Mensagem
+      [
+        {
+          text: "Cancelar",
+          style: "cancel" // Estilo padrão para cancelar (geralmente botão à esquerda/menos destacado)
+        },
+        {
+          text: "Sair",
+          onPress: async () => { // Ação ao pressionar "Sair"
+            try {
+              await logout(); // Chama a função de logout do contexto
+              // Navegação para a tela de login/inicial ocorreria automaticamente pelo AuthProvider,
+              // ou você pode forçar aqui se necessário: navigation.navigate('Login');
+            } catch (error) {
+              console.error("Erro ao fazer logout:", error);
+              Alert.alert("Erro", "Não foi possível sair. Tente novamente.");
+            }
+          },
+          style: "destructive" // Estilo que indica uma ação destrutiva (vermelho no iOS)
+        }
+      ],
+      { cancelable: true } // Permite fechar o alerta tocando fora dele (no Android)
+    );
+  };
+
   return (
+    // Usa SafeAreaView para evitar conteúdo sob notches e status bar
     <SafeAreaView style={styles.safeArea}>
+      {/* Configura a aparência da Status Bar */}
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+      
       <ScrollView
         style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={false} // Oculta a barra de rolagem vertical
+        contentContainerStyle={styles.scrollViewContent} // Estilo para o container interno do ScrollView
       >
         {/* Cabeçalho */}
         <View style={styles.header}>
-             <View style={styles.greetingContainer}>
-                <Text style={styles.greeting}>Olá, </Text>
-                <Text style={[styles.greeting, styles.userName]}>{userName}!</Text>
-             </View>
-             <Image source={{ uri: flagImageUrl }} style={styles.flag} resizeMode="contain"/>
+          <View style={styles.headerLeftContainer}>
+             {/* Imagem da Bandeira */}
+            <Image source={{ uri: flagImageUrl }} style={styles.flag} resizeMode="contain"/>
+             {/* Saudação */}
+            <View style={styles.greetingContainer}>
+              <Text style={styles.greeting}>Olá, </Text>
+              <Text style={[styles.greeting, styles.userName]}>{userName}!</Text>
+            </View>
+          </View>
+          {/* Botão de Logout */}
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Icon name="log-out" size={22} color={theme.colors.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Barra de Pesquisa */}
         <View style={styles.searchContainer}>
-            <TextInput
-                style={styles.searchInput}
-                placeholder="Procurar especialista"
-                placeholderTextColor={theme.colors.placeholder}
-                value={searchText}
-                onChangeText={setSearchText}
-                onSubmitEditing={handleSearch}
-            />
-            <TouchableOpacity style={styles.searchIconContainer} onPress={handleSearch}>
-                <Icon name="search" size={20} color={theme.colors.primary} />
-            </TouchableOpacity>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Procurar especialista"
+            placeholderTextColor={theme.colors.placeholder} // Cor do placeholder
+            value={searchText}
+            onChangeText={setSearchText} // Atualiza o estado a cada caractere digitado
+            onSubmitEditing={handleSearch} // Chama handleSearch ao pressionar "Enter" no teclado
+            returnKeyType="search" // Define o botão de retorno do teclado como "Search"
+          />
+          {/* Ícone de Pesquisa (clicável) */}
+          <TouchableOpacity style={styles.searchIconContainer} onPress={handleSearch}>
+            <Icon name="search" size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Seção de Categorias Rolável Horizontalmente */}
+        {/* Seção de Categorias */}
         <View style={styles.categoriesSection}>
           <ScrollView
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesScrollViewContent}
+            horizontal={true} // Habilita scroll horizontal
+            showsHorizontalScrollIndicator={false} // Oculta barra de scroll horizontal
+            contentContainerStyle={styles.categoriesScrollViewContent} // Estilo para o container interno
           >
+            {/* Mapeia o array de categorias para criar os botões */}
             {femtechCategories.map((category, index) => {
-                const isActive = activeCategory === category; // Verifica se é a categoria ativa
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.categoryButton,
-                      isActive ? styles.categoryButtonActive : styles.categoryButtonInactive // Aplica estilo condicional
-                    ]}
-                    onPress={() => handleCategoryPress(category)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[
-                      styles.categoryButtonText,
-                      isActive ? styles.categoryButtonTextActive : styles.categoryButtonTextInactive // Aplica estilo condicional
-                    ]}>
-                      {category}
-                    </Text>
-                  </TouchableOpacity>
-                );
+              const isActive = activeCategory === category; // Verifica se é a categoria ativa
+              return (
+                <TouchableOpacity
+                  key={index} // Chave única para cada item da lista
+                  style={[ // Aplica estilos condicionais
+                    styles.categoryButton,
+                    isActive ? styles.categoryButtonActive : styles.categoryButtonInactive
+                  ]}
+                  onPress={() => handleCategoryPress(category)} // Define a categoria ativa ao clicar
+                  activeOpacity={0.8} // Feedback visual ao pressionar
+                >
+                  <Text style={[ // Aplica estilos de texto condicionais
+                    styles.categoryButtonText,
+                    isActive ? styles.categoryButtonTextActive : styles.categoryButtonTextInactive
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              );
             })}
           </ScrollView>
         </View>
 
-        {/* Slider de Imagens Automático */}
+        {/* Slider de Imagens */}
         <View style={styles.sliderContainer}>
-           <ScrollView
-             ref={sliderRef} // Atribui a ref ao ScrollView
-             horizontal={true}
-             showsHorizontalScrollIndicator={false}
-             pagingEnabled={true} // Faz o scroll parar exatamente em cada "página" (imagem)
-             style={styles.sliderScrollView}
-             onMomentumScrollEnd={onScrollEnd} // Atualiza índice no scroll manual
-             scrollEventThrottle={16} // Opcional: Melhora performance do onScroll (se usar onScroll)
-           >
-             {sliderImageUrls.map((imageUrl, index) => (
-               <View key={index} style={styles.slide}>
-                  <Image
-                    source={{ uri: imageUrl }}
-                    style={styles.sliderImage}
-                    resizeMode="cover" // Cobre a área designada
-                  />
-               </View>
-             ))}
-           </ScrollView>
-           {/* Opcional: Indicador de pontos do slide */}
-           <View style={styles.pagination}>
-              {sliderImageUrls.map((_, index) => (
-                <View
-                    key={index}
-                    style={[
-                        styles.paginationDot,
-                        index === activeSlideIndex ? styles.paginationDotActive : styles.paginationDotInactive,
-                    ]}
+          <ScrollView
+            ref={sliderRef} // Referência para controlar o scroll programaticamente
+            horizontal={true} // Scroll horizontal
+            showsHorizontalScrollIndicator={false} // Oculta barra de scroll
+            pagingEnabled={true} // Faz o scroll parar exatamente em cada slide
+            style={styles.sliderScrollView}
+            onMomentumScrollEnd={onScrollEnd} // Detecta quando o scroll manual termina
+            scrollEventThrottle={16} // Frequência de eventos de scroll (importante para onScrollEnd)
+          >
+            {/* Mapeia as URLs das imagens para criar os slides */}
+            {sliderImageUrls.map((imageUrl, index) => (
+              <View key={index} style={styles.slide}>
+                <Image
+                  source={{ uri: imageUrl }} // Fonte da imagem
+                  style={styles.sliderImage} // Estilo da imagem
+                  resizeMode="cover" // Modo de redimensionamento da imagem
                 />
-              ))}
-           </View>
+              </View>
+            ))}
+          </ScrollView>
+          {/* Paginação do slider (pontos indicadores) */}
+          <View style={styles.pagination}>
+            {/* Mapeia as URLs para criar os pontos */}
+            {sliderImageUrls.map((_, index) => (
+              <View
+                key={index} // Chave única
+                style={[ // Estilos condicionais para o ponto ativo/inativo
+                  styles.paginationDot,
+                  index === activeSlideIndex ? styles.paginationDotActive : styles.paginationDotInactive,
+                ]}
+              />
+            ))}
+          </View>
         </View>
 
-        {/* Outro Conteúdo do Dashboard pode vir aqui */}
-        <View style={{height: 200, alignItems: 'center', justifyContent: 'center'}}>
-            <Text style={{color: theme.colors.textSecondary}}>Mais conteúdo aqui...</Text>
+        {/* Placeholder para Outro Conteúdo do Dashboard */}
+        <View style={styles.moreContentContainer}>
+          <Text style={styles.moreContentText}>Mais conteúdo aqui...</Text>
         </View>
 
       </ScrollView>
@@ -484,155 +635,102 @@ function DashboardScreen({ navigation }) {
   );
 }
 
-// --- ESTILOS ---
-const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollViewContent: {
-        paddingBottom: 30,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: Platform.OS === 'android' ? 25 : 15,
-        paddingBottom: 15, // Aumentei o padding inferior
-        backgroundColor: theme.colors.cardBackground,
-        // Removi a borda inferior para um look mais limpo com as categorias abaixo
-    },
-    greetingContainer: {
-        flexDirection: 'row',
-        alignItems: 'center', // Alinha verticalmente
-    },
-    greeting: {
-        fontSize: 20, // Ligeiramente menor
-        fontFamily: theme.fonts.systemRegular, // Fallback
-        color: theme.colors.textSecondary,
-    },
-    userName: {
-        fontSize: 20, // Ligeiramente menor
-        fontFamily: theme.fonts.systemBold, // Fallback
-        fontWeight: Platform.OS === 'android' ? 'bold' : '600',
-        color: theme.colors.text,
-    },
-    flag: {
-        width: 32, // Ligeiramente menor
-        height: 22, // Ligeiramente menor
-        marginLeft: 10, // Espaço entre nome e bandeira
-        backgroundColor: theme.colors.border,
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: theme.colors.cardBackground,
-        borderRadius: 12, // Menos arredondado
-        marginHorizontal: 15,
-        marginTop: 15,
-        marginBottom: 15,
-        paddingHorizontal: 15,
-        paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 1.5,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 15,
-        fontFamily: theme.fonts.systemRegular, // Fallback
-        color: theme.colors.text,
-        paddingVertical: 0,
-    },
-    searchIconContainer: {
-        paddingLeft: 10,
-    },
-    categoriesSection: {
-        // Sem padding horizontal aqui, o scroll vai de ponta a ponta
-        paddingVertical: 10, // Espaço vertical para a seção
-        backgroundColor: theme.colors.cardBackground, // Fundo branco para destacar
-        marginBottom: 15,
-    },
-    categoriesScrollViewContent: {
-      paddingHorizontal: 15, // Espaço nas laterais da lista de categorias
-      alignItems: 'center', // Alinha verticalmente os botões
-    },
-    categoryButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20, // Botões arredondados
-      marginRight: 10, // Espaço entre os botões
-      borderWidth: 1, // Adiciona borda para inativos
-      borderColor: theme.colors.border, // Cor da borda inativa
-    },
-    categoryButtonInactive: {
-        backgroundColor: theme.colors.inactiveCategoryBackground, // Cor de fundo inativa
-        borderColor: theme.colors.border,
-    },
-    categoryButtonActive: {
-      backgroundColor: theme.colors.primary, // Cor primária (rosa) para ativo
-      borderColor: theme.colors.primary, // Cor da borda ativa
-    },
-    categoryButtonText: {
-      fontSize: 14,
-      fontFamily: theme.fonts.systemRegular, // Fallback
-      fontWeight: '500',
-    },
-    categoryButtonTextInactive: {
-        color: theme.colors.textSecondary, // Cor do texto inativo
-    },
-    categoryButtonTextActive: {
-      color: theme.colors.activeCategoryText, // Cor do texto ativo (branco)
-      fontWeight: Platform.OS === 'android' ? 'bold' : '600', // Texto ativo em negrito
-    },
-    sliderContainer: {
-        marginBottom: 20, // Espaço abaixo do slider
-        // Não precisa de padding horizontal, o slide ocupa a tela toda
-    },
-    sliderScrollView: {
-        // O ScrollView em si não precisa de estilo extra aqui
-    },
-    slide: {
-      width: screenWidth, // Cada slide ocupa a largura total da tela
-      // A altura é definida pela imagem interna
-      // Adicionar padding horizontal se quiser margens visíveis nos lados do slide
-      // paddingHorizontal: 15,
-    },
-    sliderImage: {
-      width: '100%', // Imagem ocupa a largura do slide
-      height: screenWidth * 0.5, // Altura do slider (ex: 50% da largura da tela)
-      backgroundColor: theme.colors.border, // Placeholder
-      // Remover borderRadius se o slide ocupa a tela toda sem padding
-      // borderRadius: 15,
-    },
-    pagination: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'absolute', // Posiciona sobre o slider
-        bottom: 15, // Distância da base do slider
-        left: 0,
-        right: 0,
-    },
-    paginationDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginHorizontal: 4,
-    },
-    paginationDotActive: {
-        backgroundColor: theme.colors.primary, // Ponto ativo rosa
-    },
-    paginationDotInactive: {
-        backgroundColor: theme.colors.white, // Ponto inativo branco
-        opacity: 0.7,
-    }
-});
-
 export default DashboardScreen;
+
+stacknavegation 
+// navegation/StackNavigator.js
+import React from 'react';
+import { createStackNavigator } from '@react-navigation/stack';
+import { NavigationContainer } from '@react-navigation/native';
+
+// Importe o hook de autenticação (relativo a navegation/)
+import { useAuth } from '../context/AuthContext';
+
+// Importe suas telas (ajuste '../screens/' se estiverem em outro lugar)
+import WelcomeScreen from '../welcomeScreen';   // Assumindo screens/WelcomeScreen.js
+import LoginScreen from '../login';       // Assumindo screens/LoginScreen.js
+import RegisterScreen from '../cadastro';  // Assumindo screens/RegisterScreen.js
+
+// Importe o componente que contém as Tabs (caminho original)
+import AppTabs from '../pacientes/(tabs)/tabNavegation'; // Caminho do seu código
+
+
+
+const Stack = createStackNavigator();
+
+const StackNavigator = () => {
+  // Use o hook para obter o estado de login e carregamento
+  const { isLoggedIn, isLoading } = useAuth();
+
+  // Se ainda estiver carregando, retorne null ou um splash/loading
+   if (isLoading) {
+     return null; // Ou <SplashScreen />
+   }
+
+  return (
+    // O NavigationContainer fica aqui
+    <NavigationContainer>
+      {/* Usa os nomes de rota do seu código original */}
+      <Stack.Navigator initialRouteName={isLoggedIn ? "Home" : "Welcome"} screenOptions={{ headerShown: false }}>
+        {isLoggedIn ? (
+          // --- Tela Logada ---
+          // A rota "Home" agora aponta para o componente das suas abas
+          <Stack.Screen
+            name="Home" // Mantém o nome da rota principal
+            component={AppTabs} // Usa o componente de abas importado
+          />
+          // Adicione outras telas *fora* das abas que precisam de login aqui, se houver
+
+        ) : (
+          // --- Telas Não Logadas ---
+          // Mantém as telas de autenticação
+          <>
+            <Stack.Screen name="Welcome" component={WelcomeScreen} />
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+            
+            {/* <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} /> */}
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+};
+
+export default StackNavigator;
+
+App
+// // App.js
+// import React from 'react';
+// import { NavigationContainer } from '@react-navigation/native';
+// import 
+
+// function App() {
+//   return (
+    
+//     <NavigationContainer>
+//       <AppTabs />
+//     </NavigationContainer>
+//   );
+// }
+
+// export default App;
+
+// App.js
+// App.js
+import React from 'react';
+// O caminho para StackNavigator está correto conforme seu código
+import StackNavigator from './navegation/StackNavigator';
+// O caminho para AuthProvider (assumindo context/ na raiz)
+import { AuthProvider } from './context/AuthContext';
+
+const App = () => {
+  return (
+    // Envolve o StackNavigator com o AuthProvider
+    <AuthProvider>
+      <StackNavigator />
+    </AuthProvider>
+  );
+};
+
+export default App;

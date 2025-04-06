@@ -24,7 +24,7 @@ const theme = {
 
 const Tab = createBottomTabNavigator();
 
-function AppTabs() {
+function Medico() {
   return (
     // O <NavigationContainer> geralmente envolve este componente no App.js
     // <NavigationContainer>
@@ -92,4 +92,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default AppTabs;
+export default Medico;

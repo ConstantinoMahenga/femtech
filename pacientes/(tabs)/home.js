@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react'; // Importa hooks necessários
+// DashboardScreen.jsx
+import React, { useState, useEffect, useRef } from 'react';
 import {
-  StyleSheet,
   View,
   Text,
   TextInput,
@@ -9,373 +9,241 @@ import {
   ScrollView,
   Image,
   StatusBar,
-  Dimensions,
-  Platform,
+  Dimensions, // Mantido aqui para calcular o índice do slide, se necessário
+  Alert
 } from 'react-native';
 import Icon from 'react-native-vector-icons/Feather';
+import { useAuth } from '../../context/AuthContext';
 
-// --- TEMA ---
-const theme = {
-  colors: {
-    primary: '#FF69B4', // Rosa vibrante
-    white: '#fff',
-    text: '#333',
-    textSecondary: '#666',
-    placeholder: '#999',
-    background: '#f7f7f7',
-    border: '#eee',
-    cardBackground: '#fff',
-    activeCategoryText: '#fff', // Cor do texto da categoria ativa
-    inactiveCategoryBackground: '#f0f0f0', // Fundo da categoria inativa
-  },
-  fonts: {
-    // Verifique se os nomes das fontes estão corretos e configurados
-    regular: 'WinkySans-Regular',
-    bold: 'WinkySans-Bold',
-    systemRegular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    systemBold: Platform.OS === 'ios' ? 'System' : 'sans-serif-bold',
-  }
-};
+// Importa os estilos e o tema do arquivo separado
+import styles, { theme } from '../../style/DashboardScreen.styles';
 
-// --- DADOS ---
+// Constantes específicas do componente (URLs, categorias)
 const flagImageUrl = 'https://dm0qx8t0i9gc9.cloudfront.net/thumbnails/video/SNc_bPaMeiw63zp8r/realistic-beautiful-mozambique-flag-4k_btb1ylatee_thumbnail-1080_01.png';
-const userName = "Usuária"; // Virá do login/estado global
 
-// Categorias Femtech (Exemplo)
 const femtechCategories = [
-    'Ciclo Menstrual',
-    'Gravidez',
-    'Fertilidade',
-    'Menopausa',
-    'Bem-Estar Íntimo',
-    'Doenças Comuns',
-    'Prevenção', // Nome mais curto
-    'Saúde Mental',
-    'Nutrição', // Adicionando mais exemplos
-    'Exercícios',
+  'Ciclo Menstrual', 'Gravidez', 'Fertilidade', 'Menopausa',
+  'Bem-Estar Íntimo', 'Doenças Comuns', 'Prevenção',
+  'Saúde Mental', 'Nutrição', 'Exercícios',
 ];
 
-// URLs das Imagens do Slider (Use URLs reais)
 const sliderImageUrls = [
-  'https://images.unsplash.com/photo-1581091019961-99f3380f5f39?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
+  'https://th.bing.com/th/id/OIP.DQVPwPyKfwa7sbZHCGgsRQHaEK?rs=1&pid=ImgDetMain',
   'https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
   'https://images.unsplash.com/photo-1512678080530-7760d81faba6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
   'https://images.unsplash.com/photo-1607619056574-7b8f352a5d6e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
 ];
 
-// Dimensões da Tela
+// Pega a largura da tela para cálculos de scroll do slider
 const { width: screenWidth } = Dimensions.get('window');
 
-// --- COMPONENTE ---
 function DashboardScreen({ navigation }) {
   const [searchText, setSearchText] = useState('');
-  // Estado para categoria ativa (inicia com a primeira)
   const [activeCategory, setActiveCategory] = useState(femtechCategories[0]);
-  // Estado e Ref para o slider automático
   const [activeSlideIndex, setActiveSlideIndex] = useState(0);
-  const sliderRef = useRef(null); // Ref para controlar o ScrollView do slider
+  const sliderRef = useRef(null);
 
-  // --- Efeito para Slider Automático ---
+  const { user, logout } = useAuth();
+  const userName = user?.name || 'Usuário(a)'; // Nome padrão caso user seja null/undefined
+
+  // Efeito para auto-scroll do slider
   useEffect(() => {
-    if (sliderImageUrls.length <= 1) return; // Não faz nada se tiver 1 ou 0 imagens
+    if (sliderImageUrls.length <= 1) return; // Não faz auto-scroll se tiver 1 ou 0 imagens
 
     const intervalId = setInterval(() => {
       setActiveSlideIndex(prevIndex => {
-        const nextIndex = (prevIndex + 1) % sliderImageUrls.length; // Calcula próximo índice com loop
-        // Comando para rolar o ScrollView programaticamente
+        const nextIndex = (prevIndex + 1) % sliderImageUrls.length;
         if (sliderRef.current) {
-          sliderRef.current.scrollTo({
-            x: nextIndex * screenWidth, // Posição X da próxima imagem (largura da tela)
-            animated: true, // Animação suave
-          });
+          // Anima o scroll para o próximo slide
+          sliderRef.current.scrollTo({ x: nextIndex * screenWidth, animated: true });
         }
-        return nextIndex; // Atualiza o estado do índice
+        return nextIndex; // Atualiza o índice ativo
       });
-    }, 5000); // Intervalo de 5 segundos
+    }, 5000); // Muda a cada 5 segundos
 
-    // Função de limpeza que será executada quando o componente for desmontado
+    // Limpa o intervalo quando o componente desmontar
     return () => clearInterval(intervalId);
-  }, [sliderImageUrls.length]); // Executa o efeito novamente se o número de imagens mudar
+  }, [sliderImageUrls.length]); // Dependência: reexecuta se o número de imagens mudar
 
-  // --- Handlers ---
+  // Função para lidar com a pesquisa (ação de submit ou clique no ícone)
   const handleSearch = () => {
-    console.log('Pesquisando por:', searchText);
-    // Adicionar lógica de busca
-  };
-
-  const handleCategoryPress = (category) => {
-      console.log('Categoria selecionada:', category);
-      setActiveCategory(category); // Define a categoria clicada como ativa
-      // Adicionar navegação ou filtro baseado na categoria
-  };
-
-  // Função para atualizar o índice ativo se o usuário rolar o slider manualmente
-  const onScrollEnd = (event) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    const newIndex = Math.round(contentOffsetX / screenWidth);
-    if (newIndex !== activeSlideIndex) {
-        setActiveSlideIndex(newIndex);
+    if (searchText.trim()) { // Só pesquisa se houver texto (ignorando espaços em branco)
+        console.log('Pesquisando por:', searchText);
+        // Aqui você implementaria a lógica de navegação ou busca real
+        // Ex: navigation.navigate('SearchResults', { query: searchText });
+    } else {
+        console.log('Campo de pesquisa vazio.');
     }
   };
 
-  // --- RENDER ---
+  // Função para lidar com o clique numa categoria
+  const handleCategoryPress = (category) => {
+    console.log('Categoria selecionada:', category);
+    setActiveCategory(category);
+    // Aqui você poderia carregar conteúdo específico da categoria, etc.
+  };
+
+  // Função chamada ao final do scroll manual do slider
+  const onScrollEnd = (event) => {
+    const contentOffsetX = event.nativeEvent.contentOffset.x;
+    // Calcula o novo índice baseado na posição do scroll e largura da tela
+    const newIndex = Math.round(contentOffsetX / screenWidth);
+    if (newIndex !== activeSlideIndex) {
+      setActiveSlideIndex(newIndex); // Atualiza o índice ativo se mudou
+    }
+  };
+
+  // Função para mostrar confirmação e fazer logout
+  const handleLogout = () => {
+    Alert.alert(
+      "Sair", // Título do Alerta
+      "Tem certeza que deseja sair da sua conta?", // Mensagem
+      [
+        {
+          text: "Cancelar",
+          style: "cancel" // Estilo padrão para cancelar (geralmente botão à esquerda/menos destacado)
+        },
+        {
+          text: "Sair",
+          onPress: async () => { // Ação ao pressionar "Sair"
+            try {
+              await logout(); // Chama a função de logout do contexto
+              // Navegação para a tela de login/inicial ocorreria automaticamente pelo AuthProvider,
+              // ou você pode forçar aqui se necessário: navigation.navigate('Login');
+            } catch (error) {
+              console.error("Erro ao fazer logout:", error);
+              Alert.alert("Erro", "Não foi possível sair. Tente novamente.");
+            }
+          },
+          style: "destructive" // Estilo que indica uma ação destrutiva (vermelho no iOS)
+        }
+      ],
+      { cancelable: true } // Permite fechar o alerta tocando fora dele (no Android)
+    );
+  };
+
   return (
+    // Usa SafeAreaView para evitar conteúdo sob notches e status bar
     <SafeAreaView style={styles.safeArea}>
+      {/* Configura a aparência da Status Bar */}
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+      
       <ScrollView
         style={styles.scrollView}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scrollViewContent}
+        showsVerticalScrollIndicator={false} // Oculta a barra de rolagem vertical
+        contentContainerStyle={styles.scrollViewContent} // Estilo para o container interno do ScrollView
       >
         {/* Cabeçalho */}
         <View style={styles.header}>
-             <View style={styles.greetingContainer}>
-                <Text style={styles.greeting}>Olá, </Text>
-                <Text style={[styles.greeting, styles.userName]}>{userName}!</Text>
-             </View>
-             <Image source={{ uri: flagImageUrl }} style={styles.flag} resizeMode="contain"/>
+          <View style={styles.headerLeftContainer}>
+             {/* Imagem da Bandeira */}
+            <Image source={{ uri: flagImageUrl }} style={styles.flag} resizeMode="contain"/>
+             {/* Saudação */}
+            <View style={styles.greetingContainer}>
+              <Text style={styles.greeting}>Olá, </Text>
+              <Text style={[styles.greeting, styles.userName]}>{userName}!</Text>
+            </View>
+          </View>
+          {/* Botão de Logout */}
+          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <Icon name="log-out" size={22} color={theme.colors.primary} />
+          </TouchableOpacity>
         </View>
 
         {/* Barra de Pesquisa */}
         <View style={styles.searchContainer}>
-            <TextInput
-                style={styles.searchInput}
-                placeholder="Procurar especialista"
-                placeholderTextColor={theme.colors.placeholder}
-                value={searchText}
-                onChangeText={setSearchText}
-                onSubmitEditing={handleSearch}
-            />
-            <TouchableOpacity style={styles.searchIconContainer} onPress={handleSearch}>
-                <Icon name="search" size={20} color={theme.colors.primary} />
-            </TouchableOpacity>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Procurar especialista"
+            placeholderTextColor={theme.colors.placeholder} // Cor do placeholder
+            value={searchText}
+            onChangeText={setSearchText} // Atualiza o estado a cada caractere digitado
+            onSubmitEditing={handleSearch} // Chama handleSearch ao pressionar "Enter" no teclado
+            returnKeyType="search" // Define o botão de retorno do teclado como "Search"
+          />
+          {/* Ícone de Pesquisa (clicável) */}
+          <TouchableOpacity style={styles.searchIconContainer} onPress={handleSearch}>
+            <Icon name="search" size={20} color={theme.colors.primary} />
+          </TouchableOpacity>
         </View>
 
-        {/* Seção de Categorias Rolável Horizontalmente */}
+        {/* Seção de Categorias */}
         <View style={styles.categoriesSection}>
           <ScrollView
-            horizontal={true}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.categoriesScrollViewContent}
+            horizontal={true} // Habilita scroll horizontal
+            showsHorizontalScrollIndicator={false} // Oculta barra de scroll horizontal
+            contentContainerStyle={styles.categoriesScrollViewContent} // Estilo para o container interno
           >
+            {/* Mapeia o array de categorias para criar os botões */}
             {femtechCategories.map((category, index) => {
-                const isActive = activeCategory === category; // Verifica se é a categoria ativa
-                return (
-                  <TouchableOpacity
-                    key={index}
-                    style={[
-                      styles.categoryButton,
-                      isActive ? styles.categoryButtonActive : styles.categoryButtonInactive // Aplica estilo condicional
-                    ]}
-                    onPress={() => handleCategoryPress(category)}
-                    activeOpacity={0.8}
-                  >
-                    <Text style={[
-                      styles.categoryButtonText,
-                      isActive ? styles.categoryButtonTextActive : styles.categoryButtonTextInactive // Aplica estilo condicional
-                    ]}>
-                      {category}
-                    </Text>
-                  </TouchableOpacity>
-                );
+              const isActive = activeCategory === category; // Verifica se é a categoria ativa
+              return (
+                <TouchableOpacity
+                  key={index} // Chave única para cada item da lista
+                  style={[ // Aplica estilos condicionais
+                    styles.categoryButton,
+                    isActive ? styles.categoryButtonActive : styles.categoryButtonInactive
+                  ]}
+                  onPress={() => handleCategoryPress(category)} // Define a categoria ativa ao clicar
+                  activeOpacity={0.8} // Feedback visual ao pressionar
+                >
+                  <Text style={[ // Aplica estilos de texto condicionais
+                    styles.categoryButtonText,
+                    isActive ? styles.categoryButtonTextActive : styles.categoryButtonTextInactive
+                  ]}>
+                    {category}
+                  </Text>
+                </TouchableOpacity>
+              );
             })}
           </ScrollView>
         </View>
 
-        {/* Slider de Imagens Automático */}
+        {/* Slider de Imagens */}
         <View style={styles.sliderContainer}>
-           <ScrollView
-             ref={sliderRef} // Atribui a ref ao ScrollView
-             horizontal={true}
-             showsHorizontalScrollIndicator={false}
-             pagingEnabled={true} // Faz o scroll parar exatamente em cada "página" (imagem)
-             style={styles.sliderScrollView}
-             onMomentumScrollEnd={onScrollEnd} // Atualiza índice no scroll manual
-             scrollEventThrottle={16} // Opcional: Melhora performance do onScroll (se usar onScroll)
-           >
-             {sliderImageUrls.map((imageUrl, index) => (
-               <View key={index} style={styles.slide}>
-                  <Image
-                    source={{ uri: imageUrl }}
-                    style={styles.sliderImage}
-                    resizeMode="cover" // Cobre a área designada
-                  />
-               </View>
-             ))}
-           </ScrollView>
-           {/* Opcional: Indicador de pontos do slide */}
-           <View style={styles.pagination}>
-              {sliderImageUrls.map((_, index) => (
-                <View
-                    key={index}
-                    style={[
-                        styles.paginationDot,
-                        index === activeSlideIndex ? styles.paginationDotActive : styles.paginationDotInactive,
-                    ]}
+          <ScrollView
+            ref={sliderRef} // Referência para controlar o scroll programaticamente
+            horizontal={true} // Scroll horizontal
+            showsHorizontalScrollIndicator={false} // Oculta barra de scroll
+            pagingEnabled={true} // Faz o scroll parar exatamente em cada slide
+            style={styles.sliderScrollView}
+            onMomentumScrollEnd={onScrollEnd} // Detecta quando o scroll manual termina
+            scrollEventThrottle={16} // Frequência de eventos de scroll (importante para onScrollEnd)
+          >
+            {/* Mapeia as URLs das imagens para criar os slides */}
+            {sliderImageUrls.map((imageUrl, index) => (
+              <View key={index} style={styles.slide}>
+                <Image
+                  source={{ uri: imageUrl }} // Fonte da imagem
+                  style={styles.sliderImage} // Estilo da imagem
+                  resizeMode="cover" // Modo de redimensionamento da imagem
                 />
-              ))}
-           </View>
+              </View>
+            ))}
+          </ScrollView>
+          {/* Paginação do slider (pontos indicadores) */}
+          <View style={styles.pagination}>
+            {/* Mapeia as URLs para criar os pontos */}
+            {sliderImageUrls.map((_, index) => (
+              <View
+                key={index} // Chave única
+                style={[ // Estilos condicionais para o ponto ativo/inativo
+                  styles.paginationDot,
+                  index === activeSlideIndex ? styles.paginationDotActive : styles.paginationDotInactive,
+                ]}
+              />
+            ))}
+          </View>
         </View>
 
-        {/* Outro Conteúdo do Dashboard pode vir aqui */}
-        <View style={{height: 200, alignItems: 'center', justifyContent: 'center'}}>
-            <Text style={{color: theme.colors.textSecondary}}>Mais conteúdo aqui...</Text>
+        {/* Placeholder para Outro Conteúdo do Dashboard */}
+        <View style={styles.moreContentContainer}>
+          <Text style={styles.moreContentText}>Mais conteúdo aqui...</Text>
         </View>
 
       </ScrollView>
     </SafeAreaView>
   );
 }
-
-// --- ESTILOS ---
-const styles = StyleSheet.create({
-    safeArea: {
-        flex: 1,
-        backgroundColor: theme.colors.background,
-    },
-    scrollView: {
-        flex: 1,
-    },
-    scrollViewContent: {
-        paddingBottom: 30,
-    },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingTop: Platform.OS === 'android' ? 25 : 15,
-        paddingBottom: 15, // Aumentei o padding inferior
-        backgroundColor: theme.colors.cardBackground,
-        // Removi a borda inferior para um look mais limpo com as categorias abaixo
-    },
-    greetingContainer: {
-        flexDirection: 'row',
-        alignItems: 'center', // Alinha verticalmente
-    },
-    greeting: {
-        fontSize: 20, // Ligeiramente menor
-        fontFamily: theme.fonts.systemRegular, // Fallback
-        color: theme.colors.textSecondary,
-    },
-    userName: {
-        fontSize: 20, // Ligeiramente menor
-        fontFamily: theme.fonts.systemBold, // Fallback
-        fontWeight: Platform.OS === 'android' ? 'bold' : '600',
-        color: theme.colors.text,
-    },
-    flag: {
-        width: 32, // Ligeiramente menor
-        height: 22, // Ligeiramente menor
-        marginLeft: 10, // Espaço entre nome e bandeira
-        backgroundColor: theme.colors.border,
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: theme.colors.cardBackground,
-        borderRadius: 12, // Menos arredondado
-        marginHorizontal: 15,
-        marginTop: 15,
-        marginBottom: 15,
-        paddingHorizontal: 15,
-        paddingVertical: Platform.OS === 'ios' ? 12 : 10,
-        elevation: 2,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 1.5,
-    },
-    searchInput: {
-        flex: 1,
-        fontSize: 15,
-        fontFamily: theme.fonts.systemRegular, // Fallback
-        color: theme.colors.text,
-        paddingVertical: 0,
-    },
-    searchIconContainer: {
-        paddingLeft: 10,
-    },
-    categoriesSection: {
-        // Sem padding horizontal aqui, o scroll vai de ponta a ponta
-        paddingVertical: 10, // Espaço vertical para a seção
-        backgroundColor: theme.colors.cardBackground, // Fundo branco para destacar
-        marginBottom: 15,
-    },
-    categoriesScrollViewContent: {
-      paddingHorizontal: 15, // Espaço nas laterais da lista de categorias
-      alignItems: 'center', // Alinha verticalmente os botões
-    },
-    categoryButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 16,
-      borderRadius: 20, // Botões arredondados
-      marginRight: 10, // Espaço entre os botões
-      borderWidth: 1, // Adiciona borda para inativos
-      borderColor: theme.colors.border, // Cor da borda inativa
-    },
-    categoryButtonInactive: {
-        backgroundColor: theme.colors.inactiveCategoryBackground, // Cor de fundo inativa
-        borderColor: theme.colors.border,
-    },
-    categoryButtonActive: {
-      backgroundColor: theme.colors.primary, // Cor primária (rosa) para ativo
-      borderColor: theme.colors.primary, // Cor da borda ativa
-    },
-    categoryButtonText: {
-      fontSize: 14,
-      fontFamily: theme.fonts.systemRegular, // Fallback
-      fontWeight: '500',
-    },
-    categoryButtonTextInactive: {
-        color: theme.colors.textSecondary, // Cor do texto inativo
-    },
-    categoryButtonTextActive: {
-      color: theme.colors.activeCategoryText, // Cor do texto ativo (branco)
-      fontWeight: Platform.OS === 'android' ? 'bold' : '600', // Texto ativo em negrito
-    },
-    sliderContainer: {
-        marginBottom: 20, // Espaço abaixo do slider
-        // Não precisa de padding horizontal, o slide ocupa a tela toda
-    },
-    sliderScrollView: {
-        // O ScrollView em si não precisa de estilo extra aqui
-    },
-    slide: {
-      width: screenWidth, // Cada slide ocupa a largura total da tela
-      // A altura é definida pela imagem interna
-      // Adicionar padding horizontal se quiser margens visíveis nos lados do slide
-      // paddingHorizontal: 15,
-    },
-    sliderImage: {
-      width: '100%', // Imagem ocupa a largura do slide
-      height: screenWidth * 0.5, // Altura do slider (ex: 50% da largura da tela)
-      backgroundColor: theme.colors.border, // Placeholder
-      // Remover borderRadius se o slide ocupa a tela toda sem padding
-      // borderRadius: 15,
-    },
-    pagination: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        position: 'absolute', // Posiciona sobre o slider
-        bottom: 15, // Distância da base do slider
-        left: 0,
-        right: 0,
-    },
-    paginationDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        marginHorizontal: 4,
-    },
-    paginationDotActive: {
-        backgroundColor: theme.colors.primary, // Ponto ativo rosa
-    },
-    paginationDotInactive: {
-        backgroundColor: theme.colors.white, // Ponto inativo branco
-        opacity: 0.7,
-    }
-});
 
 export default DashboardScreen;
