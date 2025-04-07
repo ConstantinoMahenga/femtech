@@ -1,6 +1,4 @@
 tenho outro tipo de usuario "medico" eu quero ao fazer login cair no medico ou paciente dependendo de quem esta a logar, porem eu criei home separado para cada um
-login
-// LoginScreen.jsx
 import React, { useState, useRef } from 'react'; // Adicionado useRef
 import {
   View,
@@ -212,433 +210,6 @@ function LoginScreen({ navigation }) {
 // --- EXPORTAÇÃO ---
 export default LoginScreen;
 
-home medico
-import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  SafeAreaView,
-  ScrollView, // Mantido caso adicione mais info depois
-  StatusBar,
-  Platform,
-} from 'react-native';
-import Icon from 'react-native-vector-icons/Feather'; // Ícones ainda usados para detalhes
-
-// --- TEMA (Padrão Rosa consistente) ---
-const theme = {
-  colors: {
-    primary: '#FF69B4', // Rosa Principal
-    white: '#fff',
-    text: '#333',
-    textSecondary: '#666',
-    textMuted: '#888',
-    placeholder: '#aaa',
-    background: '#f7f7f7', // Fundo geral da tela
-    border: '#eee',
-    cardBackground: '#fff', // Fundo do card de perfil
-  },
-  fonts: {
-    regular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    bold: Platform.OS === 'ios' ? 'System' : 'sans-serif-bold',
-  }
-};
-
-// --- DADOS FAKE DO USUÁRIO (Sem a URL da imagem agora) ---
-const currentUserData = {
-    name: 'Maria Clara Santos',
-    email: 'm.clara.santos@email.com',
-    phone: '(11) 98765-4321',
-};
-
-// --- COMPONENTE DA TELA MEU PERFIL (Simplificado) ---
-function MyProfileScreen({ navigation }) {
-  // Botão e função de editar foram removidos
-
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
-
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Card Principal com Informações */}
-        <View style={styles.profileCard}>
-
-          {/* Nome do Usuário (agora no topo) */}
-          <Text style={styles.profileName}>{currentUserData.name}</Text>
-
-          {/* Linha Separadora Sutil */}
-          <View style={styles.separator} />
-
-          {/* Detalhes: Email e Telefone */}
-          <ProfileDetailItem
-            icon="mail"
-            label="Email"
-            value={currentUserData.email}
-          />
-          <ProfileDetailItem
-            icon="phone"
-            label="Telefone"
-            value={currentUserData.phone}
-            // Último item, podemos remover marginBottom se não houver mais nada abaixo
-            isLastItem={true}
-          />
-
-          {/* Botão Editar Perfil REMOVIDO */}
-          {/* Separador após o botão REMOVIDO */}
-
-        </View>
-
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-// --- Componente Auxiliar para Item de Detalhe (Ícone, Label, Valor) ---
-// Adicionado 'isLastItem' opcional para controlar margem inferior
-const ProfileDetailItem = ({ icon, label, value, isLastItem = false }) => (
-  <View style={[styles.detailItem, isLastItem && styles.lastDetailItem]}>
-    <Icon name={icon} size={20} color={theme.colors.primary} style={styles.detailIcon} />
-    <View style={styles.detailTextContainer}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={styles.detailValue} selectable={true}>{value}</Text>
-    </View>
-  </View>
-);
-
-
-// --- ESTILOS (Ajustados) ---
-const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-  },
-  scrollView: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingTop: 30,
-    paddingBottom: 30,
-    paddingHorizontal: 15,
-  },
-  profileCard: {
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: 12,
-    paddingVertical: 30, // Padding vertical mantido ou ajustado
-    paddingHorizontal: 25, // Padding horizontal
-    // alignItems removido pois não precisamos mais centralizar a imagem
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  // Estilo profileImage REMOVIDO
-  profileName: {
-    fontSize: 24,
-    fontFamily: theme.fonts.bold,
-    fontWeight: Platform.OS === 'android' ? 'bold' : '600',
-    color: theme.colors.text,
-    marginBottom: 25, // Espaço antes do primeiro separador
-    textAlign: 'center', // Mantém o nome centralizado
-  },
-  separator: {
-    height: 1,
-    backgroundColor: theme.colors.border,
-    width: '100%',
-    marginVertical: 20, // Espaço antes e depois dos detalhes
-  },
-  detailItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    width: '100%',
-    marginBottom: 18, // Espaço padrão entre itens
-  },
-  lastDetailItem: { // Remove margem inferior do último item
-      marginBottom: 0,
-  },
-  detailIcon: {
-    marginRight: 18,
-    marginTop: 3,
-    width: 20,
-  },
-  detailTextContainer: {
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 13,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.textMuted,
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  detailValue: {
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    lineHeight: 22,
-  },
-  // Estilos editButton e editButtonText REMOVIDOS
-});
-
-export default MyProfileScreen;
-home paciente
-// DashboardScreen.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  SafeAreaView,
-  ScrollView,
-  Image,
-  StatusBar,
-  Dimensions, // Mantido aqui para calcular o índice do slide, se necessário
-  Alert
-} from 'react-native';
-import Icon from 'react-native-vector-icons/Feather';
-import { useAuth } from '../../context/AuthContext';
-
-// Importa os estilos e o tema do arquivo separado
-import styles, { theme } from '../../style/DashboardScreen.styles';
-
-// Constantes específicas do componente (URLs, categorias)
-const flagImageUrl = 'https://dm0qx8t0i9gc9.cloudfront.net/thumbnails/video/SNc_bPaMeiw63zp8r/realistic-beautiful-mozambique-flag-4k_btb1ylatee_thumbnail-1080_01.png';
-
-const femtechCategories = [
-  'Ciclo Menstrual', 'Gravidez', 'Fertilidade', 'Menopausa',
-  'Bem-Estar Íntimo', 'Doenças Comuns', 'Prevenção',
-  'Saúde Mental', 'Nutrição', 'Exercícios',
-];
-
-const sliderImageUrls = [
-  'https://th.bing.com/th/id/OIP.DQVPwPyKfwa7sbZHCGgsRQHaEK?rs=1&pid=ImgDetMain',
-  'https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
-  'https://images.unsplash.com/photo-1512678080530-7760d81faba6?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
-  'https://images.unsplash.com/photo-1607619056574-7b8f352a5d6e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1170&q=80',
-];
-
-// Pega a largura da tela para cálculos de scroll do slider
-const { width: screenWidth } = Dimensions.get('window');
-
-function DashboardScreen({ navigation }) {
-  const [searchText, setSearchText] = useState('');
-  const [activeCategory, setActiveCategory] = useState(femtechCategories[0]);
-  const [activeSlideIndex, setActiveSlideIndex] = useState(0);
-  const sliderRef = useRef(null);
-
-  const { user, logout } = useAuth();
-  const userName = user?.name || 'Usuário(a)'; // Nome padrão caso user seja null/undefined
-
-  // Efeito para auto-scroll do slider
-  useEffect(() => {
-    if (sliderImageUrls.length <= 1) return; // Não faz auto-scroll se tiver 1 ou 0 imagens
-
-    const intervalId = setInterval(() => {
-      setActiveSlideIndex(prevIndex => {
-        const nextIndex = (prevIndex + 1) % sliderImageUrls.length;
-        if (sliderRef.current) {
-          // Anima o scroll para o próximo slide
-          sliderRef.current.scrollTo({ x: nextIndex * screenWidth, animated: true });
-        }
-        return nextIndex; // Atualiza o índice ativo
-      });
-    }, 5000); // Muda a cada 5 segundos
-
-    // Limpa o intervalo quando o componente desmontar
-    return () => clearInterval(intervalId);
-  }, [sliderImageUrls.length]); // Dependência: reexecuta se o número de imagens mudar
-
-  // Função para lidar com a pesquisa (ação de submit ou clique no ícone)
-  const handleSearch = () => {
-    if (searchText.trim()) { // Só pesquisa se houver texto (ignorando espaços em branco)
-        console.log('Pesquisando por:', searchText);
-        // Aqui você implementaria a lógica de navegação ou busca real
-        // Ex: navigation.navigate('SearchResults', { query: searchText });
-    } else {
-        console.log('Campo de pesquisa vazio.');
-    }
-  };
-
-  // Função para lidar com o clique numa categoria
-  const handleCategoryPress = (category) => {
-    console.log('Categoria selecionada:', category);
-    setActiveCategory(category);
-    // Aqui você poderia carregar conteúdo específico da categoria, etc.
-  };
-
-  // Função chamada ao final do scroll manual do slider
-  const onScrollEnd = (event) => {
-    const contentOffsetX = event.nativeEvent.contentOffset.x;
-    // Calcula o novo índice baseado na posição do scroll e largura da tela
-    const newIndex = Math.round(contentOffsetX / screenWidth);
-    if (newIndex !== activeSlideIndex) {
-      setActiveSlideIndex(newIndex); // Atualiza o índice ativo se mudou
-    }
-  };
-
-  // Função para mostrar confirmação e fazer logout
-  const handleLogout = () => {
-    Alert.alert(
-      "Sair", // Título do Alerta
-      "Tem certeza que deseja sair da sua conta?", // Mensagem
-      [
-        {
-          text: "Cancelar",
-          style: "cancel" // Estilo padrão para cancelar (geralmente botão à esquerda/menos destacado)
-        },
-        {
-          text: "Sair",
-          onPress: async () => { // Ação ao pressionar "Sair"
-            try {
-              await logout(); // Chama a função de logout do contexto
-              // Navegação para a tela de login/inicial ocorreria automaticamente pelo AuthProvider,
-              // ou você pode forçar aqui se necessário: navigation.navigate('Login');
-            } catch (error) {
-              console.error("Erro ao fazer logout:", error);
-              Alert.alert("Erro", "Não foi possível sair. Tente novamente.");
-            }
-          },
-          style: "destructive" // Estilo que indica uma ação destrutiva (vermelho no iOS)
-        }
-      ],
-      { cancelable: true } // Permite fechar o alerta tocando fora dele (no Android)
-    );
-  };
-
-  return (
-    // Usa SafeAreaView para evitar conteúdo sob notches e status bar
-    <SafeAreaView style={styles.safeArea}>
-      {/* Configura a aparência da Status Bar */}
-      <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
-      
-      <ScrollView
-        style={styles.scrollView}
-        showsVerticalScrollIndicator={false} // Oculta a barra de rolagem vertical
-        contentContainerStyle={styles.scrollViewContent} // Estilo para o container interno do ScrollView
-      >
-        {/* Cabeçalho */}
-        <View style={styles.header}>
-          <View style={styles.headerLeftContainer}>
-             {/* Imagem da Bandeira */}
-            <Image source={{ uri: flagImageUrl }} style={styles.flag} resizeMode="contain"/>
-             {/* Saudação */}
-            <View style={styles.greetingContainer}>
-              <Text style={styles.greeting}>Olá, </Text>
-              <Text style={[styles.greeting, styles.userName]}>{userName}!</Text>
-            </View>
-          </View>
-          {/* Botão de Logout */}
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <Icon name="log-out" size={22} color={theme.colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Barra de Pesquisa */}
-        <View style={styles.searchContainer}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Procurar especialista"
-            placeholderTextColor={theme.colors.placeholder} // Cor do placeholder
-            value={searchText}
-            onChangeText={setSearchText} // Atualiza o estado a cada caractere digitado
-            onSubmitEditing={handleSearch} // Chama handleSearch ao pressionar "Enter" no teclado
-            returnKeyType="search" // Define o botão de retorno do teclado como "Search"
-          />
-          {/* Ícone de Pesquisa (clicável) */}
-          <TouchableOpacity style={styles.searchIconContainer} onPress={handleSearch}>
-            <Icon name="search" size={20} color={theme.colors.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Seção de Categorias */}
-        <View style={styles.categoriesSection}>
-          <ScrollView
-            horizontal={true} // Habilita scroll horizontal
-            showsHorizontalScrollIndicator={false} // Oculta barra de scroll horizontal
-            contentContainerStyle={styles.categoriesScrollViewContent} // Estilo para o container interno
-          >
-            {/* Mapeia o array de categorias para criar os botões */}
-            {femtechCategories.map((category, index) => {
-              const isActive = activeCategory === category; // Verifica se é a categoria ativa
-              return (
-                <TouchableOpacity
-                  key={index} // Chave única para cada item da lista
-                  style={[ // Aplica estilos condicionais
-                    styles.categoryButton,
-                    isActive ? styles.categoryButtonActive : styles.categoryButtonInactive
-                  ]}
-                  onPress={() => handleCategoryPress(category)} // Define a categoria ativa ao clicar
-                  activeOpacity={0.8} // Feedback visual ao pressionar
-                >
-                  <Text style={[ // Aplica estilos de texto condicionais
-                    styles.categoryButtonText,
-                    isActive ? styles.categoryButtonTextActive : styles.categoryButtonTextInactive
-                  ]}>
-                    {category}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Slider de Imagens */}
-        <View style={styles.sliderContainer}>
-          <ScrollView
-            ref={sliderRef} // Referência para controlar o scroll programaticamente
-            horizontal={true} // Scroll horizontal
-            showsHorizontalScrollIndicator={false} // Oculta barra de scroll
-            pagingEnabled={true} // Faz o scroll parar exatamente em cada slide
-            style={styles.sliderScrollView}
-            onMomentumScrollEnd={onScrollEnd} // Detecta quando o scroll manual termina
-            scrollEventThrottle={16} // Frequência de eventos de scroll (importante para onScrollEnd)
-          >
-            {/* Mapeia as URLs das imagens para criar os slides */}
-            {sliderImageUrls.map((imageUrl, index) => (
-              <View key={index} style={styles.slide}>
-                <Image
-                  source={{ uri: imageUrl }} // Fonte da imagem
-                  style={styles.sliderImage} // Estilo da imagem
-                  resizeMode="cover" // Modo de redimensionamento da imagem
-                />
-              </View>
-            ))}
-          </ScrollView>
-          {/* Paginação do slider (pontos indicadores) */}
-          <View style={styles.pagination}>
-            {/* Mapeia as URLs para criar os pontos */}
-            {sliderImageUrls.map((_, index) => (
-              <View
-                key={index} // Chave única
-                style={[ // Estilos condicionais para o ponto ativo/inativo
-                  styles.paginationDot,
-                  index === activeSlideIndex ? styles.paginationDotActive : styles.paginationDotInactive,
-                ]}
-              />
-            ))}
-          </View>
-        </View>
-
-        {/* Placeholder para Outro Conteúdo do Dashboard */}
-        <View style={styles.moreContentContainer}>
-          <Text style={styles.moreContentText}>Mais conteúdo aqui...</Text>
-        </View>
-
-      </ScrollView>
-    </SafeAreaView>
-  );
-}
-
-export default DashboardScreen;
-
-stacknavegation 
-// navegation/StackNavigator.js
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
@@ -699,38 +270,84 @@ const StackNavigator = () => {
 
 export default StackNavigator;
 
-App
-// // App.js
-// import React from 'react';
-// import { NavigationContainer } from '@react-navigation/native';
-// import 
+// src/context/AuthContext.js
+import React, { createContext, useState, useContext, useEffect } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage'; // Para persistência (opcional, mas recomendado)
 
-// function App() {
-//   return (
-    
-//     <NavigationContainer>
-//       <AppTabs />
-//     </NavigationContainer>
-//   );
-// }
+// 1. Criar o Contexto
+const AuthContext = createContext(null);
 
-// export default App;
+// 2. Criar o Provedor
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null); // Estado para guardar os dados do usuário
+  const [isLoading, setIsLoading] = useState(true); // Estado para verificar se está carregando o usuário do storage
 
-// App.js
-// App.js
-import React from 'react';
-// O caminho para StackNavigator está correto conforme seu código
-import StackNavigator from './navegation/StackNavigator';
-// O caminho para AuthProvider (assumindo context/ na raiz)
-import { AuthProvider } from './context/AuthContext';
+  // Efeito para tentar carregar o usuário do AsyncStorage ao iniciar o app
+  useEffect(() => {
+    const loadUserFromStorage = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem('@auth_user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
+      } catch (e) {
+        console.error("AuthProvider: Erro ao carregar usuário do storage", e);
+        // Tratar erro, talvez limpar storage
+      } finally {
+        setIsLoading(false); // Finaliza o carregamento inicial
+      }
+    };
 
-const App = () => {
-  return (
-    // Envolve o StackNavigator com o AuthProvider
-    <AuthProvider>
-      <StackNavigator />
-    </AuthProvider>
-  );
+    loadUserFromStorage();
+  }, []);
+
+  // Função de Login
+  const login = async (userData) => {
+    try {
+      console.log("AuthProvider: Logando usuário:", userData);
+      setUser(userData); // Define o usuário no estado
+      // Salva o usuário no AsyncStorage para persistência
+      await AsyncStorage.setItem('@auth_user', JSON.stringify(userData));
+    } catch (e) {
+      console.error("AuthProvider: Erro ao salvar usuário no storage", e);
+    }
+  };
+
+  // Função de Logout
+  const logout = async () => {
+    try {
+      console.log("AuthProvider: Deslogando usuário");
+      setUser(null); // Limpa o usuário do estado
+      // Remove o usuário do AsyncStorage
+      await AsyncStorage.removeItem('@auth_user');
+    } catch (e) {
+      console.error("AuthProvider: Erro ao remover usuário do storage", e);
+    }
+  };
+
+  // Valor fornecido pelo contexto
+  const value = {
+    user,
+    isLoggedIn: !!user, // True se user não for null
+    isLoading,         // Para saber se o estado inicial já foi carregado
+    login,
+    logout,
+  };
+
+  // Não renderiza nada até que o estado inicial seja carregado (evita piscar a tela de login)
+  if (isLoading) {
+     // Pode retornar um componente de Loading aqui se preferir
+     return null;
+   }
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
 
-export default App;
+// 3. Hook customizado para usar o contexto
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+  }
+  return context;
+};

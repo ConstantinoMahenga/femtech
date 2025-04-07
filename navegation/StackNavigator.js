@@ -1,54 +1,45 @@
+// navigation/StackNavigator.js
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import { NavigationContainer } from '@react-navigation/native';
-
-// Importe o hook de autenticação (relativo a navegation/)
 import { useAuth } from '../context/AuthContext';
 
-// Importe suas telas (ajuste '../screens/' se estiverem em outro lugar)
-import WelcomeScreen from '../welcomeScreen';   // Assumindo screens/WelcomeScreen.js
-import LoginScreen from '../login';       // Assumindo screens/LoginScreen.js
-import RegisterScreen from '../cadastro';  // Assumindo screens/RegisterScreen.js
+// Telas de autenticação
+import WelcomeScreen from '../welcomeScreen';
+import LoginScreen from '../login';
+import RegisterScreen from '../cadastro';
 
-// Importe o componente que contém as Tabs (caminho original)
-import AppTabs from '../pacientes/(tabs)/tabNavegation'; // Caminho do seu código
+// Telas para pacientes
+import PatientTabs from '../pacientes/(tabs)/tabNavegation';
 
-
+// Telas para médicos
+import DoctorTabs from '../medicos/(tabs)/tabNavegation';
 
 const Stack = createStackNavigator();
 
-const StackNavigator = () => {
-  // Use o hook para obter o estado de login e carregamento
-  const { isLoggedIn, isLoading } = useAuth();
+const AppNavigator = () => {
+  const { isLoggedIn, isLoading, role } = useAuth();
 
-  // Se ainda estiver carregando, retorne null ou um splash/loading
-   if (isLoading) {
-     return null; // Ou <SplashScreen />
-   }
+  if (isLoading) {
+    return null; // Ou um componente de loading
+  }
 
   return (
-    // O NavigationContainer fica aqui
     <NavigationContainer>
-      {/* Usa os nomes de rota do seu código original */}
-      <Stack.Navigator initialRouteName={isLoggedIn ? "Home" : "Welcome"} screenOptions={{ headerShown: false }}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
         {isLoggedIn ? (
-          // --- Tela Logada ---
-          // A rota "Home" agora aponta para o componente das suas abas
-          <Stack.Screen
-            name="Home" // Mantém o nome da rota principal
-            component={AppTabs} // Usa o componente de abas importado
-          />
-          // Adicione outras telas *fora* das abas que precisam de login aqui, se houver
-
+          // Usuário logado - redireciona baseado no role
+          role === 'medico' ? (
+            <Stack.Screen name="DoctorHome" component={DoctorTabs} />
+          ) : (
+            <Stack.Screen name="PatientHome" component={PatientTabs} />
+          )
         ) : (
-          // --- Telas Não Logadas ---
-          // Mantém as telas de autenticação
+          // Usuário não logado
           <>
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
-            
-            {/* <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} /> */}
           </>
         )}
       </Stack.Navigator>
@@ -56,4 +47,4 @@ const StackNavigator = () => {
   );
 };
 
-export default StackNavigator;
+export default AppNavigator;

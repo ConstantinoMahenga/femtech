@@ -1,0 +1,863 @@
+// tenho outro tipo de usuario "medico" eu quero ao fazer login cair no medico ou paciente dependendo de quem esta a logar, porem eu criei home separado para cada um
+// // RegisterScreen.jsx (ou onde estiver seu componente de cadastro)
+// import React, { useState, useEffect } from 'react';
+// import {
+//   StyleSheet,
+//   View,
+//   Text,
+//   TextInput,
+//   TouchableOpacity,
+//   SafeAreaView,
+//   ScrollView,
+//   KeyboardAvoidingView,
+//   Platform,
+//   StatusBar,
+//   ActivityIndicator,
+//   Alert,
+// } from 'react-native';
+// // Ícone do Expo
+// import { MaterialIcons as Icon } from '@expo/vector-icons';
+// // Picker
+// import { Picker } from '@react-native-picker/picker';
+// // Location
+// import * as Location from 'expo-location';
+// // Firebase (Auth, Firestore)
+// import { createUserWithEmailAndPassword } from 'firebase/auth';
+// import { doc, setDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
+// import { auth, db } from './firebaseconfig'; // <<< VERIFIQUE O CAMINHO
+
+// // --- TEMA --- (Seu tema)
+// const theme = {
+//   colors: {
+//     primary: '#FF69B4', text: '#333', placeholder: '#888', background: '#fff',
+//     border: '#ccc', borderFocused: '#FF69B4', white: '#fff', lightGray: '#f0f0f0',
+//     iconColor: '#555', error: '#D32F2F',
+//   },
+// };
+
+// // --- LISTAS --- (Suas listas)
+// const medicalAreasList = [
+//   'Ginecologia e Obstetrícia', 'Mastologia', 'Reprodução Humana', 'Uroginecologia',
+//   'Endocrinologia Ginecológica', 'Oncologia Ginecológica', 'Saúde Mental Perinatal',
+//   'Medicina Fetal', 'Sexologia Clínica',
+// ];
+
+// // --- COMPONENTES AUXILIARES ---
+// // AvatarIcon (Seu componente)
+// const AvatarIcon = ({ iconName, size = 50, color = theme.colors.white, backgroundColor = theme.colors.primary }) => (
+//   <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor }]}>
+//     <Icon name={iconName} size={size * 0.6} color={color} />
+//   </View>
+// );
+
+// // --- COMPONENTE PRINCIPAL ---
+// function RegisterScreen({ navigation }) {
+//   // --- ESTADOS --- (Seus estados)
+//   const [name, setName] = useState('');
+//   const [email, setEmail] = useState('');
+//   const [phoneNumber, setPhoneNumber] = useState('');
+//   const [fetchedAddress, setFetchedAddress] = useState('');
+//   const [locationLoading, setLocationLoading] = useState(false);
+//   const [locationError, setLocationError] = useState(null);
+//   const [coords, setCoords] = useState(null); // { latitude, longitude }
+//   const [password, setPassword] = useState('');
+//   const [confirmPassword, setConfirmPassword] = useState('');
+//   const [focusedInput, setFocusedInput] = useState(null);
+//   const [userType, setUserType] = useState('paciente'); // <<< Estado que guarda 'paciente' ou 'medico'
+//   const [selectedAreas, setSelectedAreas] = useState(
+//     medicalAreasList.reduce((acc, area) => { acc[area] = false; return acc; }, {})
+//   );
+//   const [isSubmitting, setIsSubmitting] = useState(false);
+
+//   // --- FUNÇÕES --- (Suas funções de localização, etc.)
+
+//   const requestLocationPermission = async () => {
+//     let { status } = await Location.requestForegroundPermissionsAsync();
+//     if (status !== 'granted') {
+//       setLocationError('Permissão de localização negada.');
+//       Alert.alert("Permissão Negada", "É necessário permitir o acesso à localização.");
+//       return false;
+//     }
+//     return true;
+//   };
+
+//   const fetchAddress = async () => {
+//     setLocationLoading(true);
+//     setLocationError(null);
+//     setFetchedAddress('');
+//     setCoords(null);
+//     const hasPermission = await requestLocationPermission();
+//     if (!hasPermission) { setLocationLoading(false); return; }
+//     try {
+//       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+//       const currentCoords = { latitude: location.coords.latitude, longitude: location.coords.longitude };
+//       setCoords(currentCoords);
+//       let addressResponse = await Location.reverseGeocodeAsync(currentCoords);
+//       if (addressResponse && addressResponse.length > 0) {
+//         const first = addressResponse[0];
+//         const formatted = `${first.street || ''}${first.streetNumber ? ' ' + first.streetNumber : ''}, ${first.city || ''} - ${first.region || ''}, ${first.postalCode || ''}, ${first.country || ''}`;
+//         const cleanAddress = formatted.replace(/ ,/g, ',').replace(/^,|,$/g, '').trim();
+//         setFetchedAddress(cleanAddress || 'Endereço encontrado, formato desconhecido');
+//       } else { setFetchedAddress('Endereço não encontrado.'); }
+//     } catch (error) {
+//       console.error("Erro localização:", error);
+//       let message = 'Erro ao buscar localização.';
+//       if (error.code === 'E_LOCATION_SETTINGS_UNSATISFIED') message = 'Serviços de localização desativados.';
+//       setLocationError(message); Alert.alert("Erro", message);
+//     } finally { setLocationLoading(false); }
+//   };
+
+//   // --- FUNÇÃO DE SUBMISSÃO (Cadastro) ---
+//   const handleSubmit = async () => {
+//     // Validações (mantidas como no seu código)
+//     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+//     if (!emailRegex.test(email)) { Alert.alert('Erro', 'E-mail inválido.'); return; }
+//     if (!name || !email || !phoneNumber || !fetchedAddress || !password || !confirmPassword || !userType) { Alert.alert('Erro', 'Preencha todos os campos obrigatórios e busque o endereço.'); return; }
+//     if (password !== confirmPassword) { Alert.alert('Erro', 'As senhas não coincidem.'); return; }
+//     if (password.length < 6) { Alert.alert('Erro', 'A senha deve ter no mínimo 6 caracteres.'); return; }
+//     if (userType === 'medico' && !Object.values(selectedAreas).some(isSelected => isSelected)) { Alert.alert('Erro', 'Médico deve selecionar ao menos uma área.'); return; }
+
+//     setIsSubmitting(true); // Inicia loading
+
+//     try {
+//       // 1. Criar usuário no Firebase Auth
+//       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+//       const user = userCredential.user;
+
+//       // 2. Preparar dados para o Firestore
+//       const userData = {
+//         uid: user.uid,
+//         name,
+//         email: user.email, // Usar email confirmado do Auth
+//         phoneNumber,
+//         address: {
+//           formatted: fetchedAddress,
+//           coordinates: coords ? new GeoPoint(coords.latitude, coords.longitude) : null,
+//         },
+//         // ============================================================
+//         //       >>> AJUSTE PRINCIPAL AQUI <<<
+//         // Salva o valor do estado 'userType' no campo 'role'
+//         // ============================================================
+//         role: userType,
+//         // ============================================================
+//         createdAt: serverTimestamp(), // Data/Hora do servidor
+//         // Adiciona áreas médicas apenas se for médico
+//         ...(userType === 'medico' && {
+//           medicalAreas: Object.keys(selectedAreas).filter(area => selectedAreas[area])
+//         }),
+//       };
+
+//       // 3. Salvar dados no Firestore na coleção 'users' com o ID do usuário
+//       const userDocRef = doc(db, "users", user.uid);
+//       await setDoc(userDocRef, userData);
+
+//       console.log('Usuário registrado com sucesso! UID:', user.uid, 'Role:', userType);
+//       Alert.alert('Sucesso!', 'Conta criada com sucesso!');
+
+//       // Opcional: Fazer login automático após cadastro ou navegar para login
+//       // Ex: await loginContext(userData); // Se quiser logar direto (precisa importar loginContext)
+//       navigation.navigate('Login'); // Navega para a tela de Login
+
+//     } catch (error) {
+//       console.error("Erro no cadastro:", error);
+//       // Tratamento de erros do Firebase (mantido como no seu código)
+//       let errorMessage = 'Erro inesperado no cadastro.';
+//       if (error.code === 'auth/email-already-in-use') errorMessage = 'Este e-mail já está em uso.';
+//       else if (error.code === 'auth/invalid-email') errorMessage = 'E-mail inválido.';
+//       else if (error.code === 'auth/weak-password') errorMessage = 'Senha muito fraca (mínimo 6 caracteres).';
+//       else if (error.message) errorMessage = error.message; // Outros erros
+//       Alert.alert('Erro no Cadastro', errorMessage);
+//     } finally {
+//       setIsSubmitting(false); // Finaliza loading
+//     }
+//   };
+
+//   // --- OUTRAS FUNÇÕES --- (goToLogin, handleFocus, handleBlur, toggleAreaSelection - mantidas)
+//   const goToLogin = () => navigation.navigate('Login');
+//   const handleFocus = (inputName) => setFocusedInput(inputName);
+//   const handleBlur = () => setFocusedInput(null);
+//   const toggleAreaSelection = (areaName) => {
+//     setSelectedAreas(prev => ({ ...prev, [areaName]: !prev[areaName] }));
+//   };
+
+//   // --- RENDERIZAÇÃO --- (Seu JSX mantido, nenhuma alteração necessária aqui)
+//   return (
+//     <SafeAreaView style={styles.safeArea}>
+//       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+//       <KeyboardAvoidingView
+//         behavior={Platform.OS === "ios" ? "padding" : "height"}
+//         style={styles.keyboardAvoiding}
+//       >
+//         <ScrollView contentContainerStyle={styles.scrollViewContent} keyboardShouldPersistTaps="handled">
+//           <View style={styles.container}>
+//             <AvatarIcon iconName="person-add-alt-1" />
+//             <Text style={styles.title}>Criar Conta</Text>
+
+//             <View style={styles.form}>
+//               {/* Nome */}
+//               <TextInput
+//                   style={[styles.input, focusedInput === 'name' && styles.inputFocused, isSubmitting && styles.disabledBackground]}
+//                   placeholder="Nome completo" value={name} onChangeText={setName}
+//                   /* ... */ editable={!isSubmitting}
+//               />
+//               {/* E-mail */}
+//               <TextInput
+//                   style={[styles.input, focusedInput === 'email' && styles.inputFocused, isSubmitting && styles.disabledBackground]}
+//                   placeholder="E-mail" value={email} onChangeText={setEmail}
+//                   /* ... */ editable={!isSubmitting}
+//               />
+//               {/* Celular */}
+//               <TextInput
+//                   style={[styles.input, focusedInput === 'phoneNumber' && styles.inputFocused, isSubmitting && styles.disabledBackground]}
+//                   placeholder="Número de celular (com DDD)" value={phoneNumber} onChangeText={setPhoneNumber}
+//                   /* ... */ editable={!isSubmitting}
+//               />
+
+//               {/* Endereço Automático */}
+//               <View style={styles.addressContainer}>
+//                   <Text style={styles.label}>Endereço:</Text>
+//                   <TouchableOpacity
+//                       style={[styles.buttonOutline, locationLoading && styles.buttonDisabled]}
+//                       onPress={fetchAddress} disabled={locationLoading || isSubmitting}
+//                   >
+//                       {locationLoading ? <ActivityIndicator size="small" color={theme.colors.primary} />
+//                           : <><Icon name="my-location" size={20} color={theme.colors.primary} style={styles.buttonIcon} /><Text style={styles.buttonOutlineText}>Buscar Endereço Atual</Text></>}
+//                   </TouchableOpacity>
+//                   {fetchedAddress && !locationError && <Text style={styles.addressText}>{fetchedAddress}</Text>}
+//                   {locationError && <Text style={styles.errorText}>{locationError}</Text>}
+//                   {!locationLoading && !fetchedAddress && !locationError && <Text style={styles.placeholderText}>Clique para buscar seu endereço.</Text>}
+//               </View>
+
+//               {/* Tipo de Usuário */}
+//               <Text style={styles.label}>Eu sou:</Text>
+//               <View style={[styles.pickerContainer, isSubmitting && styles.disabledBackground]}>
+//                   <Picker
+//                       selectedValue={userType}
+//                       onValueChange={(itemValue) => setUserType(itemValue)}
+//                       style={styles.picker} dropdownIconColor={theme.colors.primary}
+//                       enabled={!isSubmitting}
+//                   >
+//                       <Picker.Item label="Paciente" value="paciente" />
+//                       <Picker.Item label="Médico(a)" value="medico" />
+//                   </Picker>
+//               </View>
+
+//               {/* Áreas Médicas (Condicional) */}
+//               {userType === 'medico' && (
+//                   <View style={[styles.checklistContainer, isSubmitting && styles.disabledBackground]}>
+//                       <Text style={styles.label}>Selecione suas áreas de atuação:</Text>
+//                       {Object.keys(selectedAreas).map((area) => (
+//                           <TouchableOpacity
+//                               key={area} style={styles.checklistItem}
+//                               onPress={() => !isSubmitting && toggleAreaSelection(area)}
+//                               activeOpacity={isSubmitting ? 1 : 0.7}
+//                           >
+//                               <Icon
+//                                   name={selectedAreas[area] ? 'check-box' : 'check-box-outline-blank'}
+//                                   size={24} color={selectedAreas[area] ? theme.colors.primary : theme.colors.iconColor}
+//                                   style={styles.checklistIcon}
+//                               />
+//                               <Text style={styles.checklistLabel}>{area}</Text>
+//                           </TouchableOpacity>
+//                       ))}
+//                   </View>
+//               )}
+
+//               {/* Senha */}
+//               <TextInput
+//                   style={[styles.input, focusedInput === 'password' && styles.inputFocused, isSubmitting && styles.disabledBackground]}
+//                   placeholder="Senha (mín. 6 caracteres)" value={password} onChangeText={setPassword}
+//                   /* ... */ editable={!isSubmitting} secureTextEntry
+//               />
+//               {/* Confirmar Senha */}
+//               <TextInput
+//                   style={[styles.input, focusedInput === 'confirmPassword' && styles.inputFocused, isSubmitting && styles.disabledBackground]}
+//                   placeholder="Confirmar Senha" value={confirmPassword} onChangeText={setConfirmPassword}
+//                   /* ... */ editable={!isSubmitting} secureTextEntry
+//               />
+
+//               {/* Botão Criar Conta */}
+//               <TouchableOpacity
+//                   style={[styles.button, isSubmitting && styles.buttonDisabled]}
+//                   onPress={handleSubmit} disabled={isSubmitting}
+//               >
+//                   {isSubmitting ? <ActivityIndicator size="small" color={theme.colors.white} /> : <Text style={styles.buttonText}>Criar Conta</Text>}
+//               </TouchableOpacity>
+//               {/* Link para Login */}
+//               <TouchableOpacity style={styles.linkContainer} onPress={goToLogin} disabled={isSubmitting}>
+//                   <Text style={styles.linkText}>Já possui uma conta? Entrar</Text>
+//               </TouchableOpacity>
+//             </View>
+//           </View>
+//         </ScrollView>
+//       </KeyboardAvoidingView>
+//     </SafeAreaView>
+//   );
+// }
+
+// // --- ESTILOS --- (Seus estilos completos)
+// const styles = StyleSheet.create({
+//   safeArea: { flex: 1, backgroundColor: theme.colors.background },
+//   keyboardAvoiding: { flex: 1 },
+//   scrollViewContent: { flexGrow: 1, justifyContent: 'center' },
+//   container: { alignItems: 'center', paddingHorizontal: 20, paddingVertical: 30 },
+//   avatar: { marginBottom: 15, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 4 },
+//   title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 20 },
+//   form: { width: '100%' },
+//   input: { backgroundColor: theme.colors.white, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, paddingHorizontal: 15, paddingVertical: 12, fontSize: 16, color: theme.colors.text, marginBottom: 15, width: '100%' },
+//   inputFocused: { borderColor: theme.colors.borderFocused, borderWidth: 1.5 },
+//   label: { fontSize: 16, color: theme.colors.text, marginBottom: 8, fontWeight: '500', alignSelf: 'flex-start' },
+//   addressContainer: { marginBottom: 15, width: '100%' },
+//   buttonOutline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.white, borderWidth: 1.5, borderColor: theme.colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 15, marginBottom: 10 },
+//   buttonOutlineText: { color: theme.colors.primary, fontSize: 16, fontWeight: '500' },
+//   buttonIcon: { marginRight: 8 },
+//   addressText: { fontSize: 15, color: theme.colors.text, marginTop: 5, paddingHorizontal: 5, fontStyle: 'italic' },
+//   placeholderText: { fontSize: 14, color: theme.colors.placeholder, marginTop: 5, paddingHorizontal: 5, fontStyle: 'italic', textAlign: 'center' },
+//   errorText: { fontSize: 14, color: theme.colors.error, marginTop: 5, paddingHorizontal: 5, fontWeight: 'bold' },
+//   pickerContainer: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, marginBottom: 15, backgroundColor: theme.colors.white, overflow: 'hidden' },
+//   picker: { width: '100%', height: Platform.OS === 'ios' ? 180 : 50, color: theme.colors.text }, // Ajuste altura para iOS se necessário
+//   checklistContainer: { width: '100%', marginBottom: 15, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 15, backgroundColor: theme.colors.lightGray },
+//   checklistItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
+//   checklistIcon: { marginRight: 10 },
+//   checklistLabel: { fontSize: 16, color: theme.colors.text, flex: 1 },
+//   button: { backgroundColor: theme.colors.primary, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25, alignItems: 'center', marginTop: 20, marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 5, height: 48, justifyContent: 'center' },
+//   buttonText: { color: theme.colors.white, fontSize: 16, fontWeight: 'bold' },
+//   buttonDisabled: { opacity: 0.6, backgroundColor: theme.colors.lightGray }, // Ajuste cor desabilitada se quiser
+//   disabledBackground: { backgroundColor: '#f5f5f5', opacity: 0.7 }, // Fundo para inputs/pickers desabilitados
+//   linkContainer: { marginTop: 10, alignItems: 'center' },
+//   linkText: { color: theme.colors.primary, fontSize: 14, textDecorationLine: 'underline' },
+// });
+
+// // --- EXPORTAÇÃO ---
+// export default RegisterScreen;
+
+// // screens/LoginScreen.js
+// import React, { useState } from 'react';
+// import {
+//   StyleSheet,
+//   View,
+//   Text,
+//   TextInput,
+//   TouchableOpacity,
+//   SafeAreaView,
+//   ScrollView,
+//   KeyboardAvoidingView,
+//   Platform,
+//   StatusBar,
+//   Alert,
+//   ActivityIndicator, // Importado para feedback de loading
+// } from 'react-native';
+// // Importar o ícone específico de FontAwesome5
+// import IconFA5 from 'react-native-vector-icons/FontAwesome5';
+
+// // Importar o hook useAuth do SEU contexto local
+// // VERIFIQUE ESTE CAMINHO! Deve apontar para o seu context/AuthContext.js
+// import { useAuth } from './context/AuthContext';
+
+// // Importar funções de autenticação do Firebase e a instância 'auth'
+// // VERIFIQUE ESTE CAMINHO! Deve apontar para o seu firebaseConfig.js
+// import { signInWithEmailAndPassword } from 'firebase/auth';
+// import { auth } from './firebaseconfig';
+
+// // --- TEMA (COPIADO DO SEU CÓDIGO ORIGINAL) ---
+// const theme = {
+//   colors: {
+//     primary: '#FF69B4', // Rosa vibrante
+//     text: '#333',
+//     placeholder: '#888',
+//     background: '#fff',
+//     border: '#ccc',
+//     borderFocused: '#FF69B4', // Cor da borda focada (rosa)
+//     white: '#fff',
+//   },
+// };
+
+// // --- COMPONENTE HeaderIcon (COPIADO DO SEU CÓDIGO ORIGINAL) ---
+// const HeaderIcon = ({ iconName, size = 60, color = theme.colors.white, backgroundColor = theme.colors.primary }) => (
+//   <View style={[styles.headerIconContainer, { width: size, height: size, borderRadius: size / 2, backgroundColor }]}>
+//     <IconFA5 name={iconName} size={size * 0.55} color={color} />
+//   </View>
+// );
+
+// // --- COMPONENTE PRINCIPAL ---
+// function LoginScreen({ navigation }) {
+//   // --- ESTADOS ---
+//   const [email, setEmail] = useState('');
+//   const [password, setPassword] = useState('');
+//   const [focusedInput, setFocusedInput] = useState(null);
+//   const [isLoading, setIsLoading] = useState(false); // Estado para controle do loading
+
+//   // --- CONTEXTO ---
+//   // Obtém a função 'login' do SEU AuthContext (que salva no AsyncStorage e no estado local do contexto)
+//   const { login: loginContext } = useAuth();
+
+//   // --- HANDLERS ---
+
+//   // Função para lidar com o processo de login (Firebase + Contexto Local)
+//   const handleLogin = async () => {
+//     // 1. Validação básica dos campos
+//     if (!email.trim() || !password) {
+//       Alert.alert('Campos Vazios', 'Por favor, preencha o e-mail e a senha.');
+//       return;
+//     }
+
+//     // 2. Inicia o indicador de carregamento
+//     setIsLoading(true);
+
+//     try {
+//       // 3. Tenta autenticar com o Firebase Authentication
+//       const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+//       const firebaseUser = userCredential.user;
+
+//       console.log('Login com Firebase bem-sucedido:', firebaseUser.uid);
+
+//       // 4. Prepara os dados do usuário para salvar no SEU Contexto Local
+//       //    (Usamos o displayName do Firebase se existir, senão criamos um fallback)
+//       const userDataForContext = {
+//         id: firebaseUser.uid,
+//         name: firebaseUser.displayName || email.split('@')[0].replace(/[^a-zA-Z0-9]/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Usuário(a)', // Pega nome de exibição ou usa parte do email
+//         email: firebaseUser.email,
+//         // Você pode adicionar outras informações que o Firebase fornece ou que você busca de outro lugar (Firestore, etc.)
+//         // Ex: photoURL: firebaseUser.photoURL
+//       };
+
+//       // 5. Chama a função 'login' do SEU AuthContext para atualizar o estado global e AsyncStorage
+//       await loginContext(userDataForContext);
+
+//       // Se chegou aqui, o login no Firebase e a atualização do contexto local foram bem-sucedidos.
+//       // A navegação para a tela principal ocorrerá automaticamente devido à mudança no estado `isLoggedIn`
+//       // gerenciada pelo seu StackNavigator.
+
+//     } catch (error) {
+//       // 6. Trata erros específicos do Firebase Authentication
+//       console.error("Erro no login com Firebase:", error.code, error.message);
+//       let friendlyMessage = 'Ocorreu um erro inesperado. Tente novamente.'; // Mensagem padrão
+
+//       switch (error.code) {
+//         case 'auth/invalid-email':
+//           friendlyMessage = 'O endereço de e-mail não é válido.';
+//           break;
+//         case 'auth/user-not-found':
+//           friendlyMessage = 'Nenhum usuário encontrado com este e-mail.';
+//           break;
+//         case 'auth/wrong-password':
+//           friendlyMessage = 'Senha incorreta. Por favor, verifique sua senha.';
+//           break;
+//         case 'auth/user-disabled':
+//           friendlyMessage = 'Este usuário foi desabilitado.';
+//           break;
+//         case 'auth/too-many-requests':
+//             friendlyMessage = 'Acesso temporariamente bloqueado devido a muitas tentativas. Tente novamente mais tarde.';
+//             break;
+//         // Adicione outros códigos de erro relevantes para sua aplicação
+//         // Consulte a documentação do Firebase Auth para mais códigos:
+//         // https://firebase.google.com/docs/auth/admin/errors
+//       }
+//       Alert.alert('Falha no Login', friendlyMessage);
+
+//     } finally {
+//       // 7. Garante que o indicador de carregamento seja desativado, mesmo se ocorrer erro
+//       setIsLoading(false);
+//     }
+//   };
+
+//   // Função para navegar para a tela de recuperação de senha (se existir)
+//   const handleForgotPassword = () => {
+//     console.log('Clicou em "Esqueci a senha"');
+//     // Exemplo: navigation.navigate('ForgotPassword'); // Se tiver a tela
+//      Alert.alert('Indisponível', 'A recuperação de senha ainda não foi implementada.');
+//   };
+
+//   // Função para navegar para a tela de cadastro
+//    const goToRegister = () => {
+//     if (navigation) {
+//       navigation.navigate('Register'); // Usa o nome da rota definido no StackNavigator
+//     }
+//   };
+
+//   // Funções para controlar o foco dos inputs (efeito visual)
+//   const handleFocus = (inputName) => setFocusedInput(inputName);
+//   const handleBlur = () => setFocusedInput(null);
+
+//   // --- RENDERIZAÇÃO DO COMPONENTE ---
+//   return (
+//     <SafeAreaView style={styles.safeArea}>
+//       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+//       <KeyboardAvoidingView
+//         behavior={Platform.OS === "ios" ? "padding" : "height"}
+//         style={styles.keyboardAvoiding}
+//       >
+//         {/* Usar ScrollView permite que o conteúdo role se a tela for pequena ou o teclado aparecer */}
+//         <ScrollView
+//             contentContainerStyle={styles.scrollViewContent}
+//             keyboardShouldPersistTaps="handled" // Fecha o teclado ao tocar fora dos inputs
+//         >
+//           <View style={styles.container}>
+//             {/* Ícone no Cabeçalho */}
+//             <HeaderIcon iconName="briefcase-medical" />
+
+//             {/* Título da Tela */}
+//             <Text style={styles.title}>Login</Text>
+
+//             {/* Formulário */}
+//             <View style={styles.form}>
+//               {/* Campo E-mail */}
+//               <TextInput
+//                 style={[
+//                   styles.input,
+//                   focusedInput === 'email' && styles.inputFocused, // Estilo de foco
+//                   isLoading && styles.inputDisabled // Estilo desabilitado
+//                 ]}
+//                 placeholder="E-mail"
+//                 placeholderTextColor={theme.colors.placeholder}
+//                 value={email}
+//                 onChangeText={setEmail}
+//                 keyboardType="email-address"
+//                 textContentType="emailAddress"
+//                 autoCapitalize="none"
+//                 autoComplete="email"
+//                 autoCorrect={false}
+//                 onFocus={() => handleFocus('email')}
+//                 onBlur={handleBlur}
+//                 returnKeyType="next" // Indica que o próximo campo é a senha
+//                 onSubmitEditing={() => passwordInputRef.current?.focus()} // Foca na senha ao pressionar 'next'
+//                 editable={!isLoading} // Desabilita edição durante o loading
+//               />
+
+//               {/* Campo Senha */}
+//               <TextInput
+//                 ref={(ref) => (passwordInputRef = ref)} // Referência para focar programaticamente
+//                 style={[
+//                   styles.input,
+//                   focusedInput === 'password' && styles.inputFocused, // Estilo de foco
+//                   isLoading && styles.inputDisabled // Estilo desabilitado
+//                 ]}
+//                 placeholder="Senha"
+//                 placeholderTextColor={theme.colors.placeholder}
+//                 value={password}
+//                 onChangeText={setPassword}
+//                 secureTextEntry={true} // Esconde a senha
+//                 textContentType="password"
+//                 autoComplete="password"
+//                 onFocus={() => handleFocus('password')}
+//                 onBlur={handleBlur}
+//                 returnKeyType="done" // Indica que a ação final é logar
+//                 onSubmitEditing={handleLogin} // Tenta logar ao pressionar 'done'
+//                 editable={!isLoading} // Desabilita edição durante o loading
+//               />
+
+//               {/* Link Esqueci a Senha */}
+//               <TouchableOpacity
+//                 style={styles.forgotPasswordContainer}
+//                 onPress={handleForgotPassword}
+//                 disabled={isLoading} // Desabilita durante o loading
+//               >
+//                 <Text style={[styles.forgotPasswordText, isLoading && styles.linkDisabled]}>
+//                     Esqueci a senha?
+//                 </Text>
+//               </TouchableOpacity>
+
+//               {/* Botão Entrar */}
+//               <TouchableOpacity
+//                 style={[styles.button, isLoading && styles.buttonDisabled]} // Aplica estilo desabilitado
+//                 onPress={handleLogin}
+//                 disabled={isLoading} // Desabilita o toque durante o loading
+//               >
+//                 {isLoading ? (
+//                   // Mostra o indicador de carregamento
+//                   <ActivityIndicator size="small" color={theme.colors.white} />
+//                 ) : (
+//                   // Mostra o texto normal do botão
+//                   <Text style={styles.buttonText}>Entrar</Text>
+//                 )}
+//               </TouchableOpacity>
+
+//               {/* Link para Cadastro */}
+//                <TouchableOpacity
+//                  style={styles.registerLinkContainer}
+//                  onPress={goToRegister}
+//                  disabled={isLoading} // Desabilita durante o loading
+//                 >
+//                  <Text style={[styles.registerLinkText, isLoading && styles.linkDisabled]}>
+//                     Não tem uma conta? Cadastre-se
+//                  </Text>
+//                </TouchableOpacity>
+
+//             </View>
+//           </View>
+//         </ScrollView>
+//       </KeyboardAvoidingView>
+//     </SafeAreaView>
+//   );
+// }
+
+// // --- ESTILOS --- (Seus estilos originais completos + estilos para estado desabilitado)
+// const styles = StyleSheet.create({
+//   safeArea: {
+//     flex: 1,
+//     backgroundColor: theme.colors.background,
+//   },
+//   keyboardAvoiding: {
+//     flex: 1,
+//   },
+//   scrollViewContent: {
+//     flexGrow: 1,
+//     justifyContent: 'center',
+//   },
+//   container: {
+//     alignItems: 'center',
+//     paddingHorizontal: 30,
+//     paddingVertical: 40,
+//   },
+//   headerIconContainer: {
+//     marginBottom: 25,
+//     justifyContent: 'center',
+//     alignItems: 'center',
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 3 },
+//     shadowOpacity: 0.2,
+//     shadowRadius: 4,
+//     elevation: 6,
+//   },
+//   title: {
+//     fontSize: 28,
+//     fontWeight: 'bold',
+//     color: theme.colors.text,
+//     marginBottom: 30,
+//   },
+//   form: {
+//     width: '100%',
+//   },
+//   input: {
+//     backgroundColor: theme.colors.white,
+//     borderWidth: 1,
+//     borderColor: theme.colors.border,
+//     borderRadius: 8,
+//     paddingHorizontal: 15,
+//     paddingVertical: 12,
+//     fontSize: 16,
+//     color: theme.colors.text,
+//     marginBottom: 15,
+//     width: '100%',
+//   },
+//   inputFocused: {
+//     borderColor: theme.colors.borderFocused,
+//     borderWidth: 1.5,
+//   },
+//   inputDisabled: { // Estilo para input desabilitado
+//     backgroundColor: '#f0f0f0', // Um cinza levemente diferente
+//     color: '#a0a0a0', // Cor do texto mais apagada
+//   },
+//   forgotPasswordContainer: {
+//     alignSelf: 'flex-end',
+//     marginBottom: 20,
+//   },
+//   forgotPasswordText: {
+//     color: theme.colors.primary,
+//     fontSize: 14,
+//     textDecorationLine: 'underline',
+//   },
+//   button: {
+//     backgroundColor: theme.colors.primary,
+//     paddingVertical: 14,
+//     paddingHorizontal: 20,
+//     borderRadius: 25,
+//     alignItems: 'center',
+//     justifyContent: 'center',
+//     width: '100%',
+//     marginBottom: 20,
+//     shadowColor: '#000',
+//     shadowOffset: { width: 0, height: 2 },
+//     shadowOpacity: 0.3,
+//     shadowRadius: 3,
+//     elevation: 5,
+//     minHeight: 50, // Garante altura mínima para caber o ActivityIndicator
+//   },
+//   buttonText: {
+//     color: theme.colors.white,
+//     fontSize: 16,
+//     fontWeight: 'bold',
+//   },
+//   buttonDisabled: { // Estilo para botão desabilitado
+//     backgroundColor: '#FFB6C1', // Um rosa mais claro ou cinza
+//     opacity: 0.7,
+//     elevation: 0, // Remove sombra quando desabilitado
+//     shadowOpacity: 0,
+//   },
+//   registerLinkContainer: {
+//      marginTop: 15,
+//      alignItems: 'center',
+//   },
+//   registerLinkText: {
+//      color: theme.colors.primary,
+//      fontSize: 14,
+//      textDecorationLine: 'underline',
+//   },
+//   linkDisabled: { // Estilo para links desabilitados
+//     color: '#a0a0a0', // Cor mais apagada
+//     opacity: 0.7,
+//   },
+// });
+
+// // --- EXPORTAÇÃO ---
+// export default LoginScreen;
+
+// // Variável global simples para a referência do input de senha (para focar nele)
+// let passwordInputRef = null;
+
+// // src/context/AuthContext.js
+// import React, { createContext, useState, useContext, useEffect } from 'react';
+// import AsyncStorage from '@react-native-async-storage/async-storage'; // Para persistência (opcional, mas recomendado)
+
+// // 1. Criar o Contexto
+// const AuthContext = createContext(null);
+
+// // 2. Criar o Provedor
+// export const AuthProvider = ({ children }) => {
+//   const [user, setUser] = useState(null); // Estado para guardar os dados do usuário
+//   const [isLoading, setIsLoading] = useState(true); // Estado para verificar se está carregando o usuário do storage
+
+//   // Efeito para tentar carregar o usuário do AsyncStorage ao iniciar o app
+//   useEffect(() => {
+//     const loadUserFromStorage = async () => {
+//       try {
+//         const storedUser = await AsyncStorage.getItem('@auth_user');
+//         if (storedUser) {
+//           setUser(JSON.parse(storedUser));
+//         }
+//       } catch (e) {
+//         console.error("AuthProvider: Erro ao carregar usuário do storage", e);
+//         // Tratar erro, talvez limpar storage
+//       } finally {
+//         setIsLoading(false); // Finaliza o carregamento inicial
+//       }
+//     };
+
+//     loadUserFromStorage();
+//   }, []);
+
+//   // Função de Login
+//   const login = async (userData) => {
+//     try {
+//       console.log("AuthProvider: Logando usuário:", userData);
+//       setUser(userData); // Define o usuário no estado
+//       // Salva o usuário no AsyncStorage para persistência
+//       await AsyncStorage.setItem('@auth_user', JSON.stringify(userData));
+//     } catch (e) {
+//       console.error("AuthProvider: Erro ao salvar usuário no storage", e);
+//     }
+//   };
+
+//   // Função de Logout
+//   const logout = async () => {
+//     try {
+//       console.log("AuthProvider: Deslogando usuário");
+//       setUser(null); // Limpa o usuário do estado
+//       // Remove o usuário do AsyncStorage
+//       await AsyncStorage.removeItem('@auth_user');
+//     } catch (e) {
+//       console.error("AuthProvider: Erro ao remover usuário do storage", e);
+//     }
+//   };
+
+//   // Valor fornecido pelo contexto
+//   const value = {
+//     user,
+//     isLoggedIn: !!user, // True se user não for null
+//     isLoading,         // Para saber se o estado inicial já foi carregado
+//     login,
+//     logout,
+//   };
+
+//   // Não renderiza nada até que o estado inicial seja carregado (evita piscar a tela de login)
+//   if (isLoading) {
+//      // Pode retornar um componente de Loading aqui se preferir
+//      return null;
+//    }
+
+//   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+// };
+
+// // 3. Hook customizado para usar o contexto
+// export const useAuth = () => {
+//   const context = useContext(AuthContext);
+//   if (!context) {
+//     throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+//   }
+//   return context;
+// };
+
+// import React from 'react';
+// import { createStackNavigator } from '@react-navigation/stack';
+// import { NavigationContainer } from '@react-navigation/native';
+
+// // Importe o hook de autenticação (relativo a navegation/)
+// import { useAuth } from '../context/AuthContext';
+
+// // Importe suas telas (ajuste '../screens/' se estiverem em outro lugar)
+// import WelcomeScreen from '../welcomeScreen';   // Assumindo screens/WelcomeScreen.js
+// import LoginScreen from '../login';       // Assumindo screens/LoginScreen.js
+// import RegisterScreen from '../cadastro';  // Assumindo screens/RegisterScreen.js
+
+// // Importe o componente que contém as Tabs (caminho original)
+// import AppTabs from '../pacientes/(tabs)/tabNavegation'; // Caminho do seu código
+
+
+
+// const Stack = createStackNavigator();
+
+// const StackNavigator = () => {
+//   // Use o hook para obter o estado de login e carregamento
+//   const { isLoggedIn, isLoading } = useAuth();
+
+//   // Se ainda estiver carregando, retorne null ou um splash/loading
+//    if (isLoading) {
+//      return null; // Ou <SplashScreen />
+//    }
+
+//   return (
+//     // O NavigationContainer fica aqui
+//     <NavigationContainer>
+//       {/* Usa os nomes de rota do seu código original */}
+//       <Stack.Navigator initialRouteName={isLoggedIn ? "Home" : "Welcome"} screenOptions={{ headerShown: false }}>
+//         {isLoggedIn ? (
+//           // --- Tela Logada ---
+//           // A rota "Home" agora aponta para o componente das suas abas
+//           <Stack.Screen
+//             name="Home" // Mantém o nome da rota principal
+//             component={AppTabs} // Usa o componente de abas importado
+//           />
+//           // Adicione outras telas *fora* das abas que precisam de login aqui, se houver
+
+//         ) : (
+//           // --- Telas Não Logadas ---
+//           // Mantém as telas de autenticação
+//           <>
+//             <Stack.Screen name="Welcome" component={WelcomeScreen} />
+//             <Stack.Screen name="Login" component={LoginScreen} />
+//             <Stack.Screen name="Register" component={RegisterScreen} />
+            
+//             {/* <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} /> */}
+//           </>
+//         )}
+//       </Stack.Navigator>
+//     </NavigationContainer>
+//   );
+// };
+
+// export default StackNavigator;
+// import React from 'react';
+// import { AuthProvider } from './context/AuthContext';
+// import AppNavigator from './navegation/StackNavigator';
+// import { StatusBar } from 'react-native';
+
+// const App = () => {
+//   return (
+//     <AuthProvider>
+//       <StatusBar barStyle="dark-content" />
+//       <AppNavigator />
+//     </AuthProvider>
+//   );
+// };
+
+// export default App;

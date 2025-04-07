@@ -8,9 +8,13 @@ import {
   FlatList,
   StatusBar,
   Platform,
+  Alert, // <<< Import Alert
 } from 'react-native';
+// <<< Importe o ícone e o hook useAuth >>>
+import IconFA5 from 'react-native-vector-icons/FontAwesome5'; // Ajuste se usar outra biblioteca
+import { useAuth } from '../../context/AuthContext'; // <<< VERIFIQUE ESTE CAMINHO!
 
-// --- TEMA (Padrão Rosa consistente) ---
+// --- TEMA (Mantido) ---
 const theme = {
   colors: {
     primary: '#FF69B4',
@@ -24,7 +28,8 @@ const theme = {
     cardBackground: '#fff',
     onlineStatus: '#FF69B4',
     unreadBadge: '#FF69B4',
-    initialsBackground: '#FCE4EC', // Um rosa bem claro para o fundo das iniciais
+    initialsBackground: '#FCE4EC',
+    iconColor: '#666', // Cor para o ícone de logout
   },
   fonts: {
     regular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
@@ -32,9 +37,8 @@ const theme = {
   }
 };
 
-// --- DADOS FAKE (Estrutura mantida, imageUrl não será usado nesta tela) ---
+// --- DADOS FAKE (Mantido) ---
 const chatListData = [
-    // Adicionando um campo `lastMessageSender` para o exemplo de prévia "Eu:"
     { id: '1', name: 'Sofia Alves', specialty: 'Ginecologista', imageUrl: '...', lastMessage: 'Olá! Como posso ajudar hoje?', lastMessageSender:'doctor', timestamp: '10:45', unreadCount: 2, isOnline: true },
     { id: '2', name: 'Ricardo Mendes', specialty: 'Mastologista', imageUrl: '...', lastMessage: 'Resultados dos exames chegaram.', lastMessageSender:'doctor', timestamp: 'Ontem', unreadCount: 0, isOnline: false },
     { id: '3', name: 'Carolina Pinto', specialty: 'Fertilidade', imageUrl: '...', lastMessage: 'Agendamento confirmado para sexta.', lastMessageSender:'doctor', timestamp: '15/07', unreadCount: 0, isOnline: true },
@@ -43,18 +47,11 @@ const chatListData = [
     { id: '7', name: 'Inês Pereira', specialty: 'Sexologia', imageUrl: '...', lastMessage: 'Ok, muito obrigada!', lastMessageSender:'user', timestamp: '11:30', unreadCount: 0, isOnline: true },
 ];
 
-// --- COMPONENTE DO ITEM DA LISTA DE CHAT (CORRIGIDO) ---
+// --- COMPONENTE DO ITEM DA LISTA DE CHAT (Mantido) ---
 const ChatListItem = React.memo(({ item, onPress }) => {
-    // Pega a primeira letra do nome, ou '?' se não houver nome
     const initial = item.name ? item.name.charAt(0).toUpperCase() : '?';
-
-    // Define o prefixo para a última mensagem
     const prefix = item.lastMessageSender === 'user' ? 'Eu: ' : '';
-
-    // <<< --- CORREÇÃO AQUI --- >>>
-    // Criar a string completa ANTES de usar no JSX
     const displayMessage = `${prefix}${item.lastMessage}`;
-    // <<< --- FIM DA CORREÇÃO --- >>>
 
     return (
         <TouchableOpacity
@@ -62,26 +59,18 @@ const ChatListItem = React.memo(({ item, onPress }) => {
             activeOpacity={0.6}
             onPress={() => onPress(item)}
         >
-            {/* Container da Inicial e Indicador Online */}
             <View style={styles.avatarContainer}>
                 <View style={styles.initialsCircle}>
                     <Text style={styles.initialsText}>{initial}</Text>
                 </View>
                 {item.isOnline && <View style={styles.onlineIndicator} />}
             </View>
-
-            {/* Container de Texto */}
             <View style={styles.textContainer}>
                 <Text style={styles.patientName}>{item.name}</Text>
                 <Text style={styles.lastMessage} numberOfLines={1} ellipsizeMode="tail">
-                    {/* <<< --- CORREÇÃO AQUI --- >>> */}
-                    {/* Usar a variável pré-construída */}
                     {displayMessage}
-                    {/* <<< --- FIM DA CORREÇÃO --- >>> */}
                 </Text>
             </View>
-
-            {/* Container de Metadados */}
             <View style={styles.metaContainer}>
                 <Text style={styles.timestamp}>{item.timestamp}</Text>
                 {item.unreadCount > 0 && (
@@ -97,15 +86,50 @@ const ChatListItem = React.memo(({ item, onPress }) => {
 // --- COMPONENTE DA TELA DE LISTA DE CHATS ---
 function ChatListScreen({ navigation }) {
 
+  // <<< Obtenha a função logout do contexto >>>
+  const { logout } = useAuth();
+
   const handlePressChat = (patient) => {
     console.log("Abrir chat com:", patient.name);
-    // Navegação para ChatScreen (ajuste os parâmetros conforme necessário)
     navigation.navigate('ChatScreen', {
         doctorId: patient.id,
         doctorName: patient.name,
-        doctorImage: patient.imageUrl // Mesmo se não usado na lista, pode ser útil no chat
+        doctorImage: patient.imageUrl
     });
   };
+
+  // <<< Função para lidar com o logout >>>
+  const handleLogout = () => {
+    Alert.alert(
+      "Sair", // Título
+      "Tem certeza que deseja sair da sua conta?", // Mensagem
+      [
+        {
+          text: "Não", // Botão Cancelar
+          style: "cancel"
+        },
+        {
+          text: "Sim", // Botão Confirmar
+          onPress: async () => {
+            try {
+              console.log('Iniciando processo de logout...');
+              await logout(); // Chama a função logout do contexto
+              console.log('Logout realizado com sucesso.');
+              // A navegação de volta para a tela de Login deve ser
+              // tratada automaticamente pelo seu StackNavigator principal
+              // que observa o estado de autenticação do AuthContext.
+            } catch (error) {
+              console.error("Erro ao fazer logout:", error);
+              Alert.alert("Erro", "Não foi possível sair. Tente novamente.");
+            }
+          },
+          style: 'destructive' // Estilo para indicar ação destrutiva (iOS)
+        }
+      ],
+      { cancelable: true } // Permite fechar o alerta tocando fora dele (Android)
+    );
+  };
+
 
   const renderItem = ({ item }) => (
     <ChatListItem item={item} onPress={handlePressChat} />
@@ -117,12 +141,16 @@ function ChatListScreen({ navigation }) {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.cardBackground} />
 
-      {/* Cabeçalho */}
+      {/* Cabeçalho Atualizado */}
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Conversas</Text>
+        {/* <<< Botão de Logout >>> */}
+        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+            <IconFA5 name="sign-out-alt" size={24} color={theme.colors.iconColor} />
+        </TouchableOpacity>
       </View>
 
-      {/* Lista de Chats */}
+      {/* Lista de Chats (Mantido) */}
       <FlatList
         data={chatListData}
         renderItem={renderItem}
@@ -141,7 +169,7 @@ function ChatListScreen({ navigation }) {
   );
 }
 
-// --- ESTILOS (Com estilos para iniciais) ---
+// --- ESTILOS (Adicionado estilo para o botão de logout) ---
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
@@ -149,7 +177,7 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'space-between', // Mantém o título à esquerda e o botão à direita
     alignItems: 'center',
     paddingHorizontal: 15,
     paddingVertical: 15,
@@ -162,6 +190,10 @@ const styles = StyleSheet.create({
     fontFamily: theme.fonts.bold,
     fontWeight: Platform.OS === 'android' ? 'bold' : '700',
     color: theme.colors.text,
+  },
+  // <<< Estilo para o botão de logout (ajuste padding se necessário) >>>
+  logoutButton: {
+      padding: 5, // Adiciona uma pequena área de toque ao redor do ícone
   },
   listContainer: {
     paddingBottom: 20,
@@ -246,7 +278,7 @@ const styles = StyleSheet.create({
   separator: {
     height: 1,
     backgroundColor: theme.colors.border,
-    marginLeft: 85, // (15 padding + 55 avatar + 15 margem)
+    marginLeft: 85,
   },
   emptyListContainer: {
     flexGrow: 1,
@@ -271,6 +303,4 @@ const styles = StyleSheet.create({
   }
 });
 
-// Certifique-se que o nome do componente exportado aqui
-// corresponde ao nome usado na importação no seu AppNavigator.js
 export default ChatListScreen;
