@@ -16,7 +16,6 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "Precisamos da sua localização para preencher automaticamente seu endereço no cadastro."
-        
       }
     },
     "android": {
@@ -26,22 +25,24 @@
       },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION" 
+        "android.permission.ACCESS_COARSE_LOCATION"
       ]
     },
-
-
     "plugins": [
-    [
-      "expo-location",
-      {
-        "locationWhenInUsePermission": "Precisamos da sua localização para preencher automaticamente seu endereço no cadastro."
-      }
-    ]
-  ]
-,
-
-    
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Precisamos da sua localização para preencher automaticamente seu endereço no cadastro."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Permite o $(PRODUCT_NAME) a acessar suas fotos.",
+          "cameraPermission": "Permite o $(PRODUCT_NAME) a acessar sua câmera."
+        }
+      ]
+    ],
     "web": {
       "favicon": "./assets/favicon.png"
     }

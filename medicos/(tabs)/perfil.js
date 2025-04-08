@@ -1,4 +1,5 @@
-import React from 'react';
+// perfilmedico.js (ou DoctorProfileScreen.js)
+import React, { useState, useEffect } from 'react'; // <<< IMPORT useState, useEffect
 import {
   StyleSheet,
   View,
@@ -9,21 +10,27 @@ import {
   Image,
   StatusBar,
   Platform,
+  ActivityIndicator, // <<< IMPORT ActivityIndicator
+  Alert, // <<< IMPORT Alert for potential errors
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather'; // Usando Feather para ícones
+import Icon from 'react-native-vector-icons/Feather';
+import { useAuth } from '../../context/AuthContext'; // <<< IMPORT useAuth
+// <<< IMPORT FIRESTORE FUNCTIONS and DB INSTANCE >>>
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebaseconfig'; // <<< VERIFIQUE ESTE CAMINHO!
 
-// --- TEMA (Padrão Rosa consistente) ---
+// --- TEMA (Mantido) ---
 const theme = {
   colors: {
-    primary: '#FF69B4', // Rosa Principal
+    primary: '#FF69B4',
     white: '#fff',
     text: '#333',
     textSecondary: '#666',
     textMuted: '#888',
     placeholder: '#aaa',
-    background: '#f7f7f7', // Fundo geral da tela
+    background: '#f7f7f7',
     border: '#eee',
-    cardBackground: '#fff', // Fundo do card de perfil
+    cardBackground: '#fff',
   },
   fonts: {
     regular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
@@ -31,24 +38,96 @@ const theme = {
   }
 };
 
-// --- DADOS FAKE DO MÉDICO LOGADO (Exemplo) ---
-const doctorUserData = {
-    name: 'Dra. Helena Martins',
-    email: 'helena.martins.med@email.com',
-    profileImageUrl: 'https://randomuser.me/api/portraits/women/25.jpg', // Imagem do médico
-    description: 'Médica Ginecologista e Obstetra com foco em acompanhamento pré-natal de alto risco e saúde da mulher. Mais de 10 anos de experiência clínica.',
-    category: 'Ginecologia e Obstetrícia', // Especialidade
-    location: 'São Paulo, SP - Próximo ao Metrô Paraíso', // Localização
-};
+// --- REMOVIDO: DADOS FAKE DO MÉDICO ---
 
-// --- COMPONENTE DA TELA MEU PERFIL (MÉDICO) ---
+// --- COMPONENTE DA TELA MEU PERFIL (MÉDICO - Atualizado) ---
 function DoctorProfileScreen({ navigation }) {
+  // <<< ACESSAR USUÁRIO BÁSICO DO CONTEXTO >>>
+  const { user } = useAuth();
 
-  // Função placeholder para a ação de editar
+  // <<< ESTADOS PARA DADOS DO FIRESTORE E CARREGAMENTO >>>
+  const [doctorDetails, setDoctorDetails] = useState(null); // Armazena dados do Firestore
+  const [isLoading, setIsLoading] = useState(true); // Controla o estado de carregamento
+
+  // <<< EFEITO PARA BUSCAR DADOS DO FIRESTORE QUANDO O COMPONENTE MONTA OU user.uid MUDA >>>
+  useEffect(() => {
+    const fetchDoctorDetails = async () => {
+      if (!user || !user.uid) {
+        setIsLoading(false); // Não há usuário para buscar, para o loading
+        console.log("Usuário não encontrado no contexto para buscar detalhes.");
+        return;
+      }
+
+      setIsLoading(true); // Inicia o carregamento
+      try {
+        console.log(`Buscando detalhes do médico com UID: ${user.uid}`);
+        const docRef = doc(db, "users", user.uid); // Referência ao documento do usuário
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+          console.log("Dados do médico encontrados:", docSnap.data());
+          setDoctorDetails(docSnap.data()); // Armazena os dados encontrados no estado
+        } else {
+          // Documento não existe no Firestore
+          console.warn(`Documento para o médico UID ${user.uid} não encontrado no Firestore.`);
+          setDoctorDetails({}); // Define como objeto vazio para evitar erros de `null`
+        }
+      } catch (error) {
+        console.error("Erro ao buscar detalhes do médico no Firestore:", error);
+        Alert.alert("Erro", "Não foi possível carregar os detalhes do perfil. Tente novamente mais tarde.");
+        setDoctorDetails({}); // Define como objeto vazio em caso de erro
+      } finally {
+        setIsLoading(false); // Finaliza o carregamento (sucesso ou falha)
+      }
+    };
+
+    fetchDoctorDetails();
+  }, [user]); // Dependência: re-executa se o objeto 'user' (principalmente user.uid) mudar
+
+  // --- Função de Edição (Placeholder) ---
   const handleEditProfile = () => {
     console.log("Navegar para a tela de Edição de Perfil do Médico");
-    // Exemplo: navigation.navigate('EditDoctorProfileScreen', { doctorData: doctorUserData });
+    navigation.navigate('EditDoctorProfileScreen', {
+       doctorData: { ...user, ...doctorDetails } // Combina dados do contexto e do firestore
+    });
   };
+
+  // --- RENDERIZAÇÃO ---
+
+  // Estado de Carregamento Inicial (contexto ou firestore)
+  if (isLoading || !user) {
+     return (
+       <SafeAreaView style={styles.safeArea}>
+         <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+         <View style={styles.loadingContainer}>
+           <ActivityIndicator size="large" color={theme.colors.primary} />
+         </View>
+       </SafeAreaView>
+     );
+   }
+
+  // Renderização Principal (Após carregamento)
+  // Usar dados do 'user' (contexto) como fallback se 'doctorDetails' não tiver o campo
+  const profileName = doctorDetails?.name || user.name || 'Nome Indisponível';
+  const profileEmail = doctorDetails?.email || user.email || 'Email Indisponível';
+  const profileImageUrl = doctorDetails?.profileImageUrl;
+  const location = doctorDetails?.address?.formatted || 'Localização não informada'; // Acesso seguro
+  const description = doctorDetails?.description || 'Sem descrição disponível.';
+
+  // --- MODIFICAÇÃO AQUI ---
+  // Processar as especialidades (medicalAreas) para exibição
+  let category = 'Especialidade não informada'; // Valor padrão
+  const areas = doctorDetails?.medicalAreas;
+
+  if (Array.isArray(areas) && areas.length > 0) {
+    // Se for um array não vazio, junte com quebra de linha
+    category = areas.join('\n');
+  } else if (typeof areas === 'string' && areas.trim() !== '') {
+    // Se for uma string não vazia, use-a diretamente
+    category = areas;
+  }
+  // Se for null, undefined, array vazio ou string vazia, mantém o valor padrão.
+  // --- FIM DA MODIFICAÇÃO ---
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -59,84 +138,73 @@ function DoctorProfileScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Card Principal com Informações */}
         <View style={styles.profileCard}>
 
           {/* Imagem do Perfil */}
-          <Image
-            source={{ uri: doctorUserData.profileImageUrl }}
-            style={styles.profileImage}
-          />
+          {profileImageUrl ? (
+            <Image
+              source={{ uri: profileImageUrl }}
+              style={styles.profileImage}
+            />
+          ) : (
+            <View style={[styles.profileImage, styles.profileImagePlaceholder]}>
+              <Icon name="user" size={50} color={theme.colors.primary} />
+            </View>
+          )}
 
-          {/* Nome do Médico */}
-          <Text style={styles.profileName}>{doctorUserData.name}</Text>
-
-          {/* Linha Separadora */}
+          {/* Nome */}
+          <Text style={styles.profileName}>{profileName}</Text>
           <View style={styles.separator} />
 
-          {/* Detalhes: Email, Categoria, Localização */}
-          <ProfileDetailItem
-            icon="mail" // Ícone de email
-            label="Email de Contato"
-            value={doctorUserData.email}
-          />
-          <ProfileDetailItem
-            icon="briefcase" // Ícone de pasta/trabalho
-            label="Especialidade"
-            value={doctorUserData.category}
-          />
-           <ProfileDetailItem
-            icon="map-pin" // Ícone de localização
-            label="Localização Principal"
-            value={doctorUserData.location}
-          />
+          {/* Detalhes */}
+          <ProfileDetailItem icon="mail" label="Email de Contato" value={profileEmail} />
+          {/* Usa a variável 'category' processada */}
+          <ProfileDetailItem icon="briefcase" label="Especialidade(s)" value={category} />
+          <ProfileDetailItem icon="map-pin" label="Localização Principal" value={location} />
 
-           {/* Linha Separadora */}
-           <View style={styles.separator} />
-
-           {/* Descrição */}
-           <ProfileDetailItem
-            icon="align-left" // Ícone de texto/descrição
-            label="Sobre Mim / Descrição Profissional"
-            value={doctorUserData.description}
-            isDescription // Flag para talvez estilizar diferente se necessário
-           />
-
-          {/* Linha Separadora */}
           <View style={styles.separator} />
 
-          {/* Botão Editar Perfil */}
+          {/* Descrição */}
+          <ProfileDetailItem icon="align-left" label="Sobre Mim / Descrição Profissional" value={description} isDescription />
+
+          <View style={styles.separator} />
+
+          {/* Botão Editar */}
           <TouchableOpacity style={styles.editButton} onPress={handleEditProfile} activeOpacity={0.7}>
             <Icon name="edit-2" size={18} color={theme.colors.primary} />
             <Text style={styles.editButtonText}>Editar Meu Perfil</Text>
           </TouchableOpacity>
 
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// --- Componente Auxiliar para Item de Detalhe ---
-// Reutilizado da tela de perfil anterior, com adição opcional de 'isDescription'
+// --- Componente Auxiliar ProfileDetailItem (Mantido sem alterações) ---
 const ProfileDetailItem = ({ icon, label, value, isDescription = false }) => (
-  <View style={styles.detailItem}>
-    <Icon name={icon} size={20} color={theme.colors.primary} style={styles.detailIcon} />
-    <View style={styles.detailTextContainer}>
-      <Text style={styles.detailLabel}>{label}</Text>
-      <Text style={[styles.detailValue, isDescription && styles.descriptionValue]} selectable={true}>
-          {value}
-      </Text>
+    <View style={styles.detailItem}>
+      <Icon name={icon} size={20} color={theme.colors.primary} style={styles.detailIcon} />
+      <View style={styles.detailTextContainer}>
+        <Text style={styles.detailLabel}>{label}</Text>
+        {/* O componente Text do React Native interpreta '\n' como quebra de linha */}
+        <Text style={[styles.detailValue, isDescription && styles.descriptionValue]} selectable={true}>
+            {value}
+        </Text>
+      </View>
     </View>
-  </View>
-);
+  );
 
-
-// --- ESTILOS ---
+// --- ESTILOS (Mantidos sem alterações) ---
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: theme.colors.background,
   },
   scrollView: {
@@ -151,7 +219,7 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.cardBackground,
     borderRadius: 12,
     padding: 25,
-    alignItems: 'center', // Centraliza imagem e nome
+    alignItems: 'center',
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -166,6 +234,11 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.border,
     borderWidth: 4,
     borderColor: theme.colors.primary + '60',
+  },
+  profileImagePlaceholder: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FCE4EC', // Cor placeholder um pouco mais específica
   },
   profileName: {
     fontSize: 24,
@@ -183,24 +256,24 @@ const styles = StyleSheet.create({
   },
   detailItem: {
     flexDirection: 'row',
-    alignItems: 'flex-start', // Alinha ícone no topo se texto for longo
-    width: '100%', // Ocupa toda a largura do card
+    alignItems: 'flex-start', // Alinha no topo para caso o texto quebre linha
+    width: '100%',
     marginBottom: 18,
   },
   detailIcon: {
     marginRight: 18,
-    marginTop: 3, // Ajuste para alinhar com a primeira linha do texto
-    width: 20, // Garante que o espaço do ícone seja consistente
+    marginTop: 3, // Ajuste fino para alinhar com a primeira linha de texto
+    width: 20,
     textAlign: 'center',
   },
   detailTextContainer: {
-    flex: 1, // Para o texto ocupar o restante da linha
+    flex: 1,
   },
   detailLabel: {
     fontSize: 13,
     fontFamily: theme.fonts.regular,
     color: theme.colors.textMuted,
-    marginBottom: 5, // Aumenta espaço entre label e valor
+    marginBottom: 5,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
@@ -208,24 +281,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: theme.fonts.regular,
     color: theme.colors.text,
-    lineHeight: 22, // Espaçamento entre linhas para melhor leitura
+    lineHeight: 22, // Garante espaço entre as linhas se houver quebra
   },
-  descriptionValue: { // Estilo específico para a descrição, se necessário
-    // Ex: fontStyle: 'italic',
-    lineHeight: 24, // Pode precisar de mais espaço
+  descriptionValue: {
+    lineHeight: 24,
   },
   editButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10, // Espaço acima do botão
-    // paddingVertical: 10, // Removido - botão pode ser só texto/ícone clicável
+    marginTop: 10,
   },
   editButtonText: {
     fontSize: 16,
     fontFamily: theme.fonts.bold,
     fontWeight: Platform.OS === 'android' ? 'bold' : '600',
-    color: theme.colors.primary, // Texto rosa
+    color: theme.colors.primary,
     marginLeft: 8,
   },
 });

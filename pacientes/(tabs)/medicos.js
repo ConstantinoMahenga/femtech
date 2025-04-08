@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'; // useMemo para otimizar filtro
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,146 +6,374 @@ import {
   TextInput,
   TouchableOpacity,
   SafeAreaView,
-  FlatList, // Usar FlatList para listas longas
+  FlatList,
   Image,
   StatusBar,
   Platform,
+  ActivityIndicator,
+  Linking,
+  Alert,
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather'; // Ícone de pesquisa
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons'; // Para ícone de distância
+import Icon from 'react-native-vector-icons/Feather';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
-// --- TEMA (Reutilizado) ---
+// --- Firebase Imports ---
+import { collection, query, where, getDocs, GeoPoint } from 'firebase/firestore';
+// *** AJUSTE O CAMINHO PARA SEU ARQUIVO DE CONFIG DO FIREBASE ***
+import { db } from '../../firebaseconfig'; // Exemplo: ../../firebaseconfig
+
+// --- Location and Distance Imports ---
+import * as Location from 'expo-location';
+import * as geolib from 'geolib';
+
+// --- TEMA ---
 const theme = {
   colors: {
     primary: '#FF69B4', // Rosa característico
     white: '#fff',
     text: '#333',
     textSecondary: '#666',
-    textMuted: '#888', // Cor mais suave para distância/descrição
+    textMuted: '#888',
     placeholder: '#999',
-    background: '#f7f7f7', // Fundo ligeiramente cinza
+    background: '#f7f7f7',
     border: '#eee',
     cardBackground: '#fff',
+    error: '#D32F2F',
   },
   fonts: {
-    // Verifique os nomes corretos ou use fallbacks do sistema
-    regular: Platform.OS === 'ios' ? 'System' : 'sans-serif', // Fallback
-    bold: Platform.OS === 'ios' ? 'System' : 'sans-serif-bold', // Fallback
-    // Se WinkySans estiver configurada:
-    // regular: 'WinkySans-Regular',
-    // bold: 'WinkySans-Bold',
+    regular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
+    bold: Platform.OS === 'ios' ? 'System' : 'sans-serif-bold',
   }
 };
+// --- FIM TEMA ---
 
-// --- DADOS FAKE DOS MÉDICOS (Exemplo com 10) ---
-const doctorsListData = [
-  { id: '1', name: 'Dra. Sofia Alves', specialty: 'Ginecologista e Obstetra', description: 'Acompanhamento completo da saúde feminina, pré-natal e pós-parto.', distance: '5km', imageUrl: 'https://randomuser.me/api/portraits/women/1.jpg' },
-  { id: '2', name: 'Dr. Ricardo Mendes', specialty: 'Mastologista', description: 'Diagnóstico precoce e tratamento de condições mamárias.', distance: '8km', imageUrl: 'https://randomuser.me/api/portraits/men/2.jpg' },
-  { id: '3', name: 'Dra. Carolina Pinto', specialty: 'Especialista em Fertilidade', description: 'Avaliação e tratamento para casais com dificuldade para engravidar.', distance: '12km', imageUrl: 'https://randomuser.me/api/portraits/women/3.jpg' },
-  { id: '4', name: 'Dr. André Faria', specialty: 'Uroginecologista', description: 'Tratamento de incontinência urinária e prolapsos pélvicos.', distance: '3km', imageUrl: 'https://randomuser.me/api/portraits/men/4.jpg' },
-  { id: '5', name: 'Dra. Beatriz Costa', specialty: 'Endocrinologia Ginecológica', description: 'Manejo de distúrbios hormonais, SOP, menopausa e tireoide.', distance: '15km', imageUrl: 'https://randomuser.me/api/portraits/women/5.jpg' },
-  { id: '6', name: 'Dr. João Moreira', specialty: 'Oncologia Ginecológica', description: 'Tratamento cirúrgico e clínico de cânceres ginecológicos.', distance: '25km', imageUrl: 'https://randomuser.me/api/portraits/men/6.jpg' },
-  { id: '7', name: 'Dra. Inês Pereira', specialty: 'Sexologia Clínica', description: 'Aconselhamento e terapia para questões de saúde sexual feminina.', distance: '7km', imageUrl: 'https://randomuser.me/api/portraits/women/7.jpg' },
-  { id: '8', name: 'Dr. Miguel Santos', specialty: 'Medicina Fetal', description: 'Monitoramento detalhado da saúde fetal durante a gravidez.', distance: '18km', imageUrl: 'https://randomuser.me/api/portraits/men/8.jpg' },
-  { id: '9', name: 'Dra. Laura Nunes', specialty: 'Ginecologista Infanto-Puberal', description: 'Cuidados ginecológicos específicos para crianças e adolescentes.', distance: '10km', imageUrl: 'https://randomuser.me/api/portraits/women/9.jpg' },
-  { id: '10', name: 'Dr. David Gomes', specialty: 'Cirurgia Ginecológica Minimamente Invasiva', description: 'Procedimentos como laparoscopia e histeroscopia.', distance: '22km', imageUrl: 'https://randomuser.me/api/portraits/men/10.jpg' },
-];
+// --- Função auxiliar para formatar a distância ---
+const formatDistance = (distanceInMeters) => {
+    if (distanceInMeters === null || distanceInMeters === undefined) {
+        return null; // Não exibe se a distância não foi calculada
+    }
+    if (distanceInMeters < 1000) {
+        return `Há ${Math.round(distanceInMeters)} m de distância`;
+    } else {
+        return `Há ${(distanceInMeters / 1000).toFixed(1)} km de distância`;
+    }
+};
 
 // --- COMPONENTE DO ITEM DA LISTA ---
-// Criado como um componente separado para clareza e performance
-const DoctorListItem = React.memo(({ item, navigation }) => (
-    <TouchableOpacity
-        style={styles.doctorCard}
-        activeOpacity={0.7} // Feedback visual ao tocar
-        onPress={() => {
-            console.log("Clicou no médico:", item.name);
-            // Navegar para a tela de detalhes do médico (descomentar quando a tela existir):
-            // navigation.navigate('DoctorDetail', { doctorId: item.id });
-        }}
-    >
-        {/* Container Principal do Card (Linha) */}
-        <View style={styles.doctorCardContent}>
-            {/* Coluna Esquerda: Informações de Texto e Distância */}
-            <View style={styles.doctorInfoContainer}>
-                <Text style={styles.doctorName}>{item.name}</Text>
-                <Text style={styles.doctorSpecialty}>{item.specialty}</Text>
-                <Text style={styles.doctorDescription} numberOfLines={2} ellipsizeMode="tail">
-                    {item.description}
-                </Text>
-                <View style={styles.distanceContainer}>
-                    <MaterialCommunityIcons name="map-marker-distance" size={16} color={theme.colors.textMuted} />
-                    <Text style={styles.distanceText}>{item.distance}</Text>
+const DoctorListItem = React.memo(({ item, navigation }) => {
+    // Assume que os nomes dos campos no Firestore são 'medicalAreas', 'profile.bio', 'description', 'name', 'profileImageUrl'
+    const primarySpecialty = item.medicalAreas && item.medicalAreas.length > 0
+        ? item.medicalAreas[0]
+        : 'Especialidade não informada';
+    const description = item.profile?.bio || item.description || 'Sem descrição disponível.';
+    const displayDistance = formatDistance(item.distance); // Distância formatada ou null
+
+    return (
+        <TouchableOpacity
+            style={styles.doctorCard}
+            activeOpacity={0.7}
+            onPress={() => {
+                // *** VERIFIQUE SE 'ViewDoctorProfileScreen' É O NOME CORRETO DA SUA TELA ***
+                navigation.navigate('ViewDoctorProfileScreen', { doctorId: item.id });
+            }}
+        >
+            <View style={styles.doctorCardContent}>
+                {/* Coluna de Informações */}
+                <View style={styles.doctorInfoContainer}>
+                    <Text style={styles.doctorName}>{item.name || 'Nome não disponível'}</Text>
+                    <Text style={styles.doctorSpecialty}>{primarySpecialty}</Text>
+                    {item.medicalAreas && item.medicalAreas.length > 1 && (
+                         <Text style={styles.doctorExtraSpecialties} numberOfLines={1}>
+                             + {item.medicalAreas.slice(1).join(', ')}
+                         </Text>
+                     )}
+                    <Text style={styles.doctorDescription} numberOfLines={2} ellipsizeMode="tail">
+                        {description}
+                    </Text>
+                    {/* Exibe a Distância se disponível */}
+                    {displayDistance && (
+                        <View style={styles.distanceContainer}>
+                            <MaterialCommunityIcons name="map-marker-distance" size={16} color={theme.colors.textMuted} /* Ícone pode manter cor neutra */ />
+                            <Text style={styles.distanceText /* Estilo modificado abaixo */}>{displayDistance}</Text>
+                        </View>
+                    )}
                 </View>
+
+                {/* Coluna da Imagem/Placeholder */}
+                {item.profileImageUrl ? (
+                    <Image
+                        source={{ uri: item.profileImageUrl }}
+                        style={styles.doctorImage}
+                        resizeMode="cover"
+                        onError={(e) => console.log("Erro ao carregar imagem:", item.profileImageUrl, e.nativeEvent.error)}
+                    />
+                ) : (
+                    <View style={styles.doctorImagePlaceholder}>
+                         <Icon name="user" size={30} color={theme.colors.placeholder} />
+                    </View>
+                )}
             </View>
+        </TouchableOpacity>
+    );
+});
 
-            {/* Coluna Direita: Imagem */}
-            <Image
-                source={{ uri: item.imageUrl }}
-                style={styles.doctorImage}
-                resizeMode="cover" // Garante que a imagem cubra a área sem distorcer
-            />
-        </View>
-    </TouchableOpacity>
-));
 
-// --- COMPONENTE DA TELA ---
+// --- COMPONENTE PRINCIPAL DA TELA ---
 function DoctorsScreen({ navigation }) {
   const [searchText, setSearchText] = useState('');
+  const [doctors, setDoctors] = useState([]); // Médicos brutos do Firestore
+  const [processedDoctors, setProcessedDoctors] = useState([]); // Médicos com distância, ordenados
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
+  const [errorDoctors, setErrorDoctors] = useState(null);
 
-  // Filtra a lista de médicos baseado no texto de pesquisa (otimizado com useMemo)
+  // Estado da Localização
+  const [userLocation, setUserLocation] = useState(null); // { latitude, longitude }
+  const [locationPermissionStatus, setLocationPermissionStatus] = useState(null);
+  const [loadingLocation, setLoadingLocation] = useState(true);
+  const [errorLocation, setErrorLocation] = useState(null);
+
+  // --- Lógica para Buscar Médicos ---
+  const fetchDoctors = useCallback(async () => {
+      setLoadingDoctors(true);
+      setErrorDoctors(null);
+      setDoctors([]);
+      setProcessedDoctors([]);
+      console.log("Buscando médicos no Firestore...");
+      try {
+        // *** VERIFIQUE SE OS NOMES DA COLEÇÃO E CAMPOS ESTÃO CORRETOS ***
+        const q = query(
+            collection(db, "users"),
+            where("role", "==", "medico")
+        );
+        const querySnapshot = await getDocs(q);
+        const doctorsList = [];
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+
+          // --- Busca o GeoPoint dentro de 'address.coordinates' ---
+          const locationData = (data.address?.coordinates && typeof data.address.coordinates.latitude === 'number' && typeof data.address.coordinates.longitude === 'number')
+              ? data.address.coordinates
+              : null;
+
+          if (!locationData) {
+              console.warn(`Médico ${doc.id} (${data.name}) não possui um GeoPoint válido em 'address.coordinates'.`);
+          }
+          // Adiciona ao array, mapeando o GeoPoint (ou null) para a propriedade 'location'
+          doctorsList.push({ id: doc.id, ...data, location: locationData });
+
+        });
+        console.log(`Encontrados ${doctorsList.length} médicos.`);
+        setDoctors(doctorsList);
+      } catch (err) {
+        console.error("Erro ao buscar médicos: ", err);
+        setErrorDoctors("Não foi possível carregar os médicos. Verifique sua conexão.");
+      } finally {
+        setLoadingDoctors(false);
+      }
+    }, []);
+
+  // --- 1. Busca Permissão e Coordenadas de Localização ---
+  useEffect(() => {
+    const requestLocation = async () => {
+      setLoadingLocation(true);
+      setErrorLocation(null);
+      console.log("Solicitando permissão de localização...");
+      try {
+        let { status } = await Location.requestForegroundPermissionsAsync();
+        setLocationPermissionStatus(status);
+        console.log("Status da permissão:", status);
+
+        if (status !== 'granted') {
+          setErrorLocation('Permissão de localização necessária para mostrar distâncias.');
+          setLoadingLocation(false);
+          return;
+        }
+
+        console.log("Obtendo posição atual...");
+        let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLocation({
+          latitude: location.coords.latitude,
+          longitude: location.coords.longitude,
+        });
+        console.log("Localização do usuário obtida:", location.coords);
+        setErrorLocation(null);
+      } catch (err) {
+        console.error('Erro ao obter localização:', err);
+        setErrorLocation('Não foi possível obter sua localização.');
+      } finally {
+        setLoadingLocation(false);
+      }
+    };
+    requestLocation();
+  }, []);
+
+  // --- 2. Busca Médicos ---
+  useEffect(() => {
+    fetchDoctors();
+  }, [fetchDoctors]);
+
+
+  // --- 3. Calcula Distâncias e Ordena ---
+  useEffect(() => {
+    if (loadingLocation) {
+      return;
+    }
+
+    if (doctors.length > 0) {
+       console.log("Processando distâncias...");
+       const doctorsWithDistance = doctors
+         .map(doctor => {
+           let distance = null;
+           if (userLocation && doctor.location) {
+             try {
+                 distance = geolib.getDistance(
+                     userLocation,
+                     { latitude: doctor.location.latitude, longitude: doctor.location.longitude }
+                 );
+             } catch(calcError) {
+                 console.error(`Erro ao calcular distância para ${doctor.id}:`, calcError);
+                 distance = null;
+             }
+           }
+           return { ...doctor, distance };
+         })
+         .sort((a, b) => {
+           if (a.distance === null && b.distance === null) return 0;
+           if (a.distance === null) return 1;
+           if (b.distance === null) return -1;
+           return a.distance - b.distance;
+         });
+
+       console.log("Distâncias processadas e ordenadas.");
+       setProcessedDoctors(doctorsWithDistance);
+    } else {
+        setProcessedDoctors([]);
+    }
+  }, [userLocation, doctors, loadingLocation]);
+
+
+  // --- 4. Filtra a Lista Processada ---
   const filteredDoctors = useMemo(() => {
-    if (!searchText.trim()) { // Verifica se a busca está vazia ou só tem espaços
-      return doctorsListData; // Retorna todos se a busca estiver vazia
+    const listToFilter = processedDoctors;
+    if (!searchText.trim()) {
+      return listToFilter;
     }
     const lowerCaseSearch = searchText.toLowerCase();
-    return doctorsListData.filter(doctor =>
-      doctor.name.toLowerCase().includes(lowerCaseSearch) ||
-      doctor.specialty.toLowerCase().includes(lowerCaseSearch) ||
-      (doctor.description && doctor.description.toLowerCase().includes(lowerCaseSearch)) // Busca na descrição (opcional)
+    return listToFilter.filter(doctor => {
+        // Assume que os nomes dos campos são 'name', 'medicalAreas', 'profile.bio', 'description'
+        const nameMatch = doctor.name?.toLowerCase().includes(lowerCaseSearch);
+        const specialtyMatch = doctor.medicalAreas?.some(area =>
+            area.toLowerCase().includes(lowerCaseSearch)
+        );
+        const descriptionMatch = doctor.profile?.bio?.toLowerCase().includes(lowerCaseSearch) ||
+                                 doctor.description?.toLowerCase().includes(lowerCaseSearch);
+        return nameMatch || specialtyMatch || descriptionMatch;
+      }
     );
-  }, [searchText]); // Recalcula apenas quando searchText muda
+  }, [searchText, processedDoctors]);
 
-  // Função para renderizar cada item usando o componente DoctorListItem
-  const renderItem = ({ item }) => (
+
+  // Renderiza cada item
+  const renderItem = useCallback(({ item }) => (
     <DoctorListItem item={item} navigation={navigation} />
-  );
+  ), [navigation]);
+
+
+  // --- Determina Estado Geral de Carregamento ---
+  const isLoading = loadingLocation || loadingDoctors;
+
+
+  // --- Lógica de Renderização do Conteúdo Principal ---
+  const renderContent = () => {
+    // Estado de Carregamento
+    if (isLoading) {
+      return (
+         <View style={styles.centeredMessageContainer}>
+           <ActivityIndicator size="large" color={theme.colors.primary} />
+           <Text style={styles.loadingText}>
+             {loadingLocation ? 'Obtendo localização...' : 'Carregando médicos...'}
+           </Text>
+         </View>
+      );
+    }
+
+    // Erro ao Buscar Médicos
+    if (errorDoctors) {
+       return (
+         <View style={styles.centeredMessageContainer}>
+            <Icon name="alert-circle" size={40} color={theme.colors.error} />
+            <Text style={styles.errorText}>{errorDoctors}</Text>
+            <TouchableOpacity style={styles.retryButton} onPress={fetchDoctors}>
+                <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+            </TouchableOpacity>
+         </View>
+       );
+    }
+
+    // Renderiza a Lista
+    return (
+        <FlatList
+          data={filteredDoctors}
+          renderItem={renderItem}
+          keyExtractor={item => item.id}
+          contentContainerStyle={styles.listContainer}
+          showsVerticalScrollIndicator={false}
+          ListEmptyComponent={
+            <View style={styles.emptyListContainer}>
+                <Text style={styles.emptyListText}>
+                   {processedDoctors.length === 0 ? 'Nenhum médico disponível' : 'Nenhum médico encontrado'}
+                </Text>
+                {processedDoctors.length > 0 && searchText.trim() && (
+                    <Text style={styles.emptyListSubText}>Verifique o termo pesquisado.</Text>
+                )}
+            </View>
+          }
+          initialNumToRender={10}
+          maxToRenderPerBatch={5}
+          windowSize={10}
+        />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
 
-      {/* Barra de Pesquisa Fixa no Topo */}
+      {/* Barra de Busca */}
       <View style={styles.searchContainer}>
           <TextInput
               style={styles.searchInput}
-              placeholder="Procurar especialista..."
+              placeholder="Procurar por nome, especialidade..."
               placeholderTextColor={theme.colors.placeholder}
               value={searchText}
-              onChangeText={setSearchText} // Atualiza o estado a cada caractere digitado
-              returnKeyType="search" // Tecla de retorno vira "Buscar" no teclado
-              clearButtonMode="while-editing" // Botão para limpar (iOS)
+              onChangeText={setSearchText}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+              editable={!isLoading}
           />
-          {/* Ícone de Lupa (pode ser um botão se precisar de ação específica ao clicar nele) */}
           <Icon name="search" size={20} color={theme.colors.textSecondary} style={styles.searchIcon} />
       </View>
 
-      {/* Lista de Médicos */}
-      <FlatList
-        data={filteredDoctors} // Usa a lista filtrada
-        renderItem={renderItem} // Função que renderiza cada item
-        keyExtractor={item => item.id} // Chave única para cada item
-        contentContainerStyle={styles.listContainer} // Estilo para o container interno da lista
-        showsVerticalScrollIndicator={false} // Esconde a barra de rolagem vertical
-        ListEmptyComponent={ // Componente para mostrar se a busca não retornar resultados
-          <View style={styles.emptyListContainer}>
-              <Text style={styles.emptyListText}>Nenhum médico encontrado.</Text>
-              <Text style={styles.emptyListSubText}>Tente ajustar sua busca.</Text>
-          </View>
-        }
-      />
+      {/* Banner de Informação/Erro de Localização */}
+      {!loadingLocation && errorLocation && (
+        <View style={styles.infoBanner}>
+            <Icon name="info" size={18} color={theme.colors.textSecondary} style={{ marginRight: 8 }}/>
+            <Text style={styles.infoBannerText}>{errorLocation}</Text>
+            {/* Mostra link para Configurações apenas se permissão foi negada */}
+            {locationPermissionStatus === 'denied' && (
+                 <TouchableOpacity style={styles.settingsLink} onPress={() => Linking.openSettings()}>
+                    <Text style={styles.settingsLinkText}>Abrir Config.</Text>
+                 </TouchableOpacity>
+            )}
+        </View>
+      )}
+
+      {/* Área Principal de Conteúdo */}
+      {renderContent()}
+
     </SafeAreaView>
   );
-} // <- Fechamento da função DoctorsScreen
+}
 
 // --- ESTILOS ---
 const styles = StyleSheet.create({
@@ -154,116 +382,107 @@ const styles = StyleSheet.create({
     backgroundColor: theme.colors.background,
   },
   searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: theme.colors.cardBackground,
-    borderRadius: 10,
-    marginHorizontal: 15,
-    marginTop: 15, // Espaço acima da barra
-    marginBottom: 10, // Espaço abaixo da barra, antes da lista
-    paddingHorizontal: 15,
-    paddingVertical: Platform.OS === 'ios' ? 12 : 8, // Ajuste fino para altura
-    elevation: 3, // Sombra para Android
-    shadowColor: '#000', // Sombra para iOS
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
+    flexDirection: 'row', alignItems: 'center', backgroundColor: theme.colors.cardBackground,
+    borderRadius: 10, marginHorizontal: 15, marginTop: 15, marginBottom: 10,
+    paddingHorizontal: 15, paddingVertical: Platform.OS === 'ios' ? 12 : 9, elevation: 3,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.1, shadowRadius: 2,
   },
   searchInput: {
-    flex: 1, // Ocupa o máximo de espaço disponível na linha
-    fontSize: 16,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.text,
-    paddingVertical: 0, // Remove padding vertical interno no Android
-    marginRight: 8, // Espaço entre o input e o ícone
+    flex: 1, fontSize: 16, fontFamily: theme.fonts.regular, color: theme.colors.text,
+    paddingVertical: 0, marginRight: 8,
   },
-  searchIcon: {
-    // Se precisar de um TouchableOpacity em volta, crie um container
-  },
+  searchIcon: { },
   listContainer: {
-    paddingHorizontal: 15, // Espaçamento lateral para os cards dentro da lista
-    paddingBottom: 20, // Espaçamento na base da lista para não colar na borda
-  },
+      paddingHorizontal: 15, paddingBottom: 20, flexGrow: 1,
+   },
   doctorCard: {
     backgroundColor: theme.colors.cardBackground,
-    borderRadius: 12,
-    marginBottom: 15, // Espaço entre os cards
-    elevation: 2, // Sombra sutil Android
-    shadowColor: '#000', // Sombra sutil iOS
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    // overflow: 'hidden', // Cuidado: Pode cortar a sombra em alguns casos
+    borderRadius: 12, marginBottom: 15, elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3,
   },
   doctorCardContent: {
-    flexDirection: 'row', // Alinha texto e imagem lado a lado
-    padding: 15, // Padding interno do card
-    alignItems: 'flex-start', // Alinha itens no topo da linha (útil se a descrição for longa)
+    flexDirection: 'row', padding: 15, alignItems: 'center',
   },
   doctorInfoContainer: {
-    flex: 1, // Permite que esta coluna ocupe o espaço restante antes da imagem
-    marginRight: 15, // Espaço entre a coluna de texto e a imagem
+    flex: 1, marginRight: 15,
   },
   doctorName: {
-    fontSize: 17,
-    fontFamily: theme.fonts.bold,
-    fontWeight: Platform.OS === 'android' ? 'bold' : '600', // Peso da fonte
-    color: theme.colors.text,
-    marginBottom: 4, // Pequeno espaço abaixo do nome
+    fontSize: 17, fontFamily: theme.fonts.bold, fontWeight: Platform.OS === 'android' ? 'bold' : '600',
+    color: theme.colors.text, marginBottom: 4,
   },
   doctorSpecialty: {
-    fontSize: 14,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.primary, // Especialidade em rosa
-    marginBottom: 6, // Espaço abaixo da especialidade
-    fontWeight: '500', // Um pouco mais de destaque
+    fontSize: 14, fontFamily: theme.fonts.regular, color: theme.colors.primary,
+    marginBottom: 2, fontWeight: '500',
+  },
+  doctorExtraSpecialties: {
+     fontSize: 12, fontFamily: theme.fonts.regular, color: theme.colors.textSecondary,
+     marginBottom: 6, fontStyle: 'italic',
   },
   doctorDescription: {
-    fontSize: 13,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.textMuted, // Cor mais suave para a descrição
-    lineHeight: 18, // Melhora a legibilidade de múltiplas linhas
-    marginBottom: 8, // Espaço abaixo da descrição
+    fontSize: 13, fontFamily: theme.fonts.regular, color: theme.colors.textMuted,
+    lineHeight: 18, marginTop: 4, marginBottom: 8,
   },
   distanceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 'auto', // Tenta empurrar para baixo (funciona se houver espaço vertical sobrando)
-    paddingTop: 5, // Pequeno espaço acima da distância se não houver espaço para empurrar
+    marginTop: 4,
   },
-  distanceText: {
+  distanceText: { // <<< ESTILO MODIFICADO AQUI >>>
     fontSize: 13,
     fontFamily: theme.fonts.regular,
-    color: theme.colors.textMuted, // Mesma cor suave da descrição
-    marginLeft: 5, // Espaço entre ícone e texto
+    color: theme.colors.primary, // Cor alterada para rosa
+    marginLeft: 5,
+    fontWeight: '500', // Opcional: Leve negrito
   },
   doctorImage: {
-    width: 80,
-    height: 80,
-    borderRadius: 40, // Metade da largura/altura para fazer um círculo perfeito
-    backgroundColor: theme.colors.border, // Cor de fundo enquanto a imagem não carrega
+    width: 75, height: 75, borderRadius: 37.5,
+    backgroundColor: theme.colors.border,
+  },
+  doctorImagePlaceholder: {
+    width: 75, height: 75, borderRadius: 37.5, backgroundColor: theme.colors.border,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  centeredMessageContainer: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30,
+  },
+  loadingText: {
+    marginTop: 15, fontSize: 16, fontFamily: theme.fonts.regular, color: theme.colors.textSecondary, textAlign: 'center',
+  },
+  errorText: {
+    marginTop: 15, fontSize: 16, fontFamily: theme.fonts.regular, color: theme.colors.error, textAlign: 'center', marginBottom: 20,
+  },
+  retryButton: {
+      backgroundColor: theme.colors.primary,
+      paddingVertical: 10, paddingHorizontal: 25, borderRadius: 8,
+  },
+  retryButtonText: {
+      color: theme.colors.white, fontSize: 16, fontWeight: 'bold',
   },
   emptyListContainer: {
-    flexGrow: 1, // Ocupa o espaço disponível se a lista estiver vazia
-    marginTop: 50, // Espaço acima da mensagem
-    alignItems: 'center', // Centraliza horizontalmente
-    justifyContent: 'center', // Centraliza verticalmente (se flexGrow funcionar)
-    paddingHorizontal: 20, // Evita que o texto encoste nas laterais
-  }, // <- Fechamento do estilo emptyListContainer
+    flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 30, paddingHorizontal: 20,
+  },
   emptyListText: {
-    fontSize: 18,
-    fontFamily: theme.fonts.bold,
-    fontWeight: Platform.OS === 'android' ? 'bold' : '600',
-    color: theme.colors.textSecondary,
-    textAlign: 'center',
-    marginBottom: 8,
+    fontSize: 18, fontFamily: theme.fonts.bold, fontWeight: Platform.OS === 'android' ? 'bold' : '600',
+    color: theme.colors.textSecondary, textAlign: 'center', marginBottom: 8,
   },
   emptyListSubText: {
-    fontSize: 14,
-    fontFamily: theme.fonts.regular,
-    color: theme.colors.textMuted,
-    textAlign: 'center',
-  }
+    fontSize: 14, fontFamily: theme.fonts.regular, color: theme.colors.textMuted, textAlign: 'center',
+  },
+  infoBanner: {
+     backgroundColor: '#FFFBEA', borderColor: '#FEEABC', borderWidth: 1,
+     paddingVertical: 8, paddingHorizontal: 15, marginHorizontal: 15,
+     marginBottom: 10, borderRadius: 6, flexDirection: 'row',
+     alignItems: 'center', justifyContent: 'space-between',
+  },
+  infoBannerText: {
+      flex: 1, fontSize: 13, color: '#856404', marginRight: 10,
+  },
+   settingsLink: {
+      paddingLeft: 5,
+   },
+  settingsLinkText: {
+      fontSize: 13, color: theme.colors.primary, fontWeight: 'bold',
+  },
 });
 
-export default DoctorsScreen; // Exporta o componente para ser usado em outros lugares
+export default DoctorsScreen;

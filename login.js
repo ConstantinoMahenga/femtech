@@ -79,7 +79,7 @@ function LoginScreen({ navigation }) {
       const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
       const firebaseUser = userCredential.user;
 
-      console.log('Login com Firebase bem-sucedido:', firebaseUser.uid);
+     // console.log('Login com Firebase bem-sucedido:', firebaseUser.uid);
 
       // 4. *** NOVO: Buscar o role do usuário no Firestore ***
       let userRole = 'paciente'; // Default role
@@ -90,14 +90,14 @@ function LoginScreen({ navigation }) {
         if (userDocSnap.exists()) {
           // Se o documento existe, pega o role. Se o campo 'role' não existir no doc, usa 'paciente'
           userRole = userDocSnap.data()?.role || 'paciente';
-          console.log('Role do usuário encontrado no Firestore:', userRole);
+       //   console.log('Role do usuário encontrado no Firestore:', userRole);
         } else {
           // Documento não encontrado no Firestore, usa o role padrão
-          console.warn(`Documento do usuário ${firebaseUser.uid} não encontrado no Firestore. Usando role padrão 'paciente'.`);
+         // console.warn(`Documento do usuário ${firebaseUser.uid} não encontrado no Firestore. Usando role padrão 'paciente'.`);
         }
       } catch (firestoreError) {
          // Erro ao buscar no Firestore, usa role padrão e loga o erro
-         console.error("Erro ao buscar role do usuário no Firestore:", firestoreError);
+         //console.error("Erro ao buscar role do usuário no Firestore:", firestoreError);
          Alert.alert('Erro Adicional', 'Não foi possível buscar as permissões do usuário. Usando permissões padrão.');
          // Continua com o role padrão 'paciente'
       }
@@ -121,7 +121,7 @@ function LoginScreen({ navigation }) {
 
     } catch (error) {
       // 7. Tratamento de erros do Firebase Auth (mantido do segundo exemplo)
-      console.error("Erro no login com Firebase:", error.code, error.message);
+      //console.error("Erro no login com Firebase:", error.code, error.message);
       let friendlyMessage = 'Ocorreu um erro inesperado. Tente novamente.';
       switch (error.code) {
         case 'auth/invalid-email':

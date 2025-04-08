@@ -88,7 +88,8 @@ function DashboardScreen({ navigation }) {
             const distance = getDistanceFromLatLonInKm(userLat, userLon, doctorLat, doctorLon);
             
             //Distancia em km
-            if (distance <= 50) {
+            let medico=50
+            if (distance <= medico) {
               doctorsList.push({ id: doc.id, ...data, distance });
             }
           }

@@ -1,27 +1,30 @@
+// perfilPaciente.js (ou MyProfileScreen.js)
 import React from 'react';
 import {
   StyleSheet,
   View,
   Text,
   SafeAreaView,
-  ScrollView, // Mantido caso adicione mais info depois
+  ScrollView,
   StatusBar,
   Platform,
+  ActivityIndicator, // Import ActivityIndicator for loading state
 } from 'react-native';
-import Icon from 'react-native-vector-icons/Feather'; // Ícones ainda usados para detalhes
+import Icon from 'react-native-vector-icons/Feather';
+import { useAuth } from '../../context/AuthContext'; // <<< IMPORT useAuth
 
-// --- TEMA (Padrão Rosa consistente) ---
+// --- TEMA (Mantido) ---
 const theme = {
   colors: {
-    primary: '#FF69B4', // Rosa Principal
+    primary: '#FF69B4',
     white: '#fff',
     text: '#333',
     textSecondary: '#666',
     textMuted: '#888',
     placeholder: '#aaa',
-    background: '#f7f7f7', // Fundo geral da tela
+    background: '#f7f7f7',
     border: '#eee',
-    cardBackground: '#fff', // Fundo do card de perfil
+    cardBackground: '#fff',
   },
   fonts: {
     regular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
@@ -29,17 +32,28 @@ const theme = {
   }
 };
 
-// --- DADOS FAKE DO USUÁRIO (Sem a URL da imagem agora) ---
-const currentUserData = {
-    name: 'Maria Clara Santos',
-    email: 'm.clara.santos@email.com',
-    phone: '(11) 98765-4321',
-};
+// --- REMOVIDO: DADOS FAKE DO USUÁRIO ---
+// const currentUserData = { ... };
 
-// --- COMPONENTE DA TELA MEU PERFIL (Simplificado) ---
+// --- COMPONENTE DA TELA MEU PERFIL (Atualizado) ---
 function MyProfileScreen({ navigation }) {
-  // Botão e função de editar foram removidos
+  // <<< ACESSAR DADOS DO USUÁRIO DO CONTEXTO >>>
+  const { user } = useAuth();
 
+  // <<< RENDERIZAÇÃO CONDICIONAL ENQUANTO DADOS NÃO ESTÃO PRONTOS >>>
+  if (!user) {
+    // Se não houver usuário (pode acontecer brevemente durante o carregamento inicial)
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={theme.colors.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // <<< Renderização principal com dados do usuário do contexto >>>
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
@@ -49,41 +63,38 @@ function MyProfileScreen({ navigation }) {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Card Principal com Informações */}
         <View style={styles.profileCard}>
 
-          {/* Nome do Usuário (agora no topo) */}
-          <Text style={styles.profileName}>{currentUserData.name}</Text>
+          {/* <<< USA user.name do contexto >>> */}
+          <Text style={styles.profileName}>{user.name || 'Nome Indisponível'}</Text>
 
-          {/* Linha Separadora Sutil */}
           <View style={styles.separator} />
 
-          {/* Detalhes: Email e Telefone */}
+          {/* <<< USA user.email do contexto >>> */}
           <ProfileDetailItem
             icon="mail"
             label="Email"
-            value={currentUserData.email}
+            value={user.email || 'Email Indisponível'}
+            isLastItem={true} // Último item agora
           />
+          <View style={styles.separator} />
+          {/* Campo Telefone Removido por enquanto - Adicionar se/quando estiver no contexto ou for buscado */}
+          {
           <ProfileDetailItem
             icon="phone"
             label="Telefone"
-            value={currentUserData.phone}
-            // Último item, podemos remover marginBottom se não houver mais nada abaixo
+            value={user.phoneNumber || 'Não informado'} // Assumindo que 'phone' poderia existir no 'user'
             isLastItem={true}
           />
-
-          {/* Botão Editar Perfil REMOVIDO */}
-          {/* Separador após o botão REMOVIDO */}
+          }
 
         </View>
-
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-// --- Componente Auxiliar para Item de Detalhe (Ícone, Label, Valor) ---
-// Adicionado 'isLastItem' opcional para controlar margem inferior
+// --- Componente Auxiliar para Item de Detalhe (Mantido) ---
 const ProfileDetailItem = ({ icon, label, value, isLastItem = false }) => (
   <View style={[styles.detailItem, isLastItem && styles.lastDetailItem]}>
     <Icon name={icon} size={20} color={theme.colors.primary} style={styles.detailIcon} />
@@ -95,10 +106,17 @@ const ProfileDetailItem = ({ icon, label, value, isLastItem = false }) => (
 );
 
 
-// --- ESTILOS (Ajustados) ---
+// --- ESTILOS (Adicionado loadingContainer, outros mantidos/ajustados) ---
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: theme.colors.background,
+  },
+  // <<< Estilo para o estado de carregamento >>>
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
     backgroundColor: theme.colors.background,
   },
   scrollView: {
@@ -112,37 +130,35 @@ const styles = StyleSheet.create({
   profileCard: {
     backgroundColor: theme.colors.cardBackground,
     borderRadius: 12,
-    paddingVertical: 30, // Padding vertical mantido ou ajustado
-    paddingHorizontal: 25, // Padding horizontal
-    // alignItems removido pois não precisamos mais centralizar a imagem
+    paddingVertical: 30,
+    paddingHorizontal: 25,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
   },
-  // Estilo profileImage REMOVIDO
   profileName: {
     fontSize: 24,
     fontFamily: theme.fonts.bold,
     fontWeight: Platform.OS === 'android' ? 'bold' : '600',
     color: theme.colors.text,
-    marginBottom: 25, // Espaço antes do primeiro separador
-    textAlign: 'center', // Mantém o nome centralizado
+    marginBottom: 25,
+    textAlign: 'center',
   },
   separator: {
     height: 1,
     backgroundColor: theme.colors.border,
     width: '100%',
-    marginVertical: 20, // Espaço antes e depois dos detalhes
+    marginVertical: 20,
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     width: '100%',
-    marginBottom: 18, // Espaço padrão entre itens
+    marginBottom: 18,
   },
-  lastDetailItem: { // Remove margem inferior do último item
+  lastDetailItem: {
       marginBottom: 0,
   },
   detailIcon: {
@@ -167,7 +183,6 @@ const styles = StyleSheet.create({
     color: theme.colors.text,
     lineHeight: 22,
   },
-  // Estilos editButton e editButtonText REMOVIDOS
 });
 
 export default MyProfileScreen;
