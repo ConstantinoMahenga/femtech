@@ -15,6 +15,7 @@ import DoctorTabs from '../medicos/(tabs)/tabNavegation';   // Verifique o camin
 // --- Telas de Detalhe (Adicionadas) ---
 // *** IMPORTANTE: Verifique os caminhos corretos para estas telas ***
 import ChatScreen from '../pacientes/conversainterna'; // Exemplo: ../screens/ChatScreen
+import Chatbot from '../chatbot';
 //import ViewDoctorProfileScreen from '../path/to/your/ViewDoctorProfileScreen'; // Exemplo: ../screens/ViewDoctorProfileScreen
 
 const Stack = createStackNavigator();
@@ -52,6 +53,10 @@ const AppNavigator = () => {
               // options={{ headerShown: false }} // Já está no screenOptions global
             />
            
+            <Stack.Screen
+              name='ChatbotScreen'
+              component={Chatbot}
+            />
              {/* Adicione outras telas de detalhe aqui, se houver */}
 
              {/* Se DoctorTabs precisar acessar PatientTabs ou vice-versa (improvável), adicione a outra aqui também */}

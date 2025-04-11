@@ -36,7 +36,7 @@ function WelcomeScreen({ navigation }) {
       <ImageBackground source={backgroundImage} resizeMode="cover" style={styles.backgroundImage}>
         <View style={styles.overlay}>
           <View style={styles.contentContainer}>
-            <Text style={styles.welcomeText}>Bem-vindo(a) à TeleMedicina!</Text>
+            <Text style={styles.welcomeText}>Bem-vindo(a) à Maia!</Text>
             <Text style={styles.descriptionText}>
               Acesse médicos especialistas e cuide do seu bem-estar de forma prática e segura.
             </Text>

@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "femtech",
-    "slug": "femtech",
+    "name": "maia",
+    "slug": "maia",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -25,7 +25,8 @@
       },
       "permissions": [
         "android.permission.ACCESS_FINE_LOCATION",
-        "android.permission.ACCESS_COARSE_LOCATION"
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO"
       ]
     },
     "plugins": [
@@ -45,6 +46,12 @@
     ],
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "0e9b3789-51f5-4658-aa81-415b2ede8635"
+      }
+    },
+    "owner": "constantino_j"
   }
 }

@@ -64,11 +64,7 @@ const healthTopicsData = [
     title: 'Saúde Mental',
     description: 'A saúde mental é fundamental em todas as fases da vida. Fatores hormonais, sociais e de vida podem impactá-la. Buscar apoio psicológico é um ato de autocuidado.',
   },
-  {
-    id: '9',
-    title: 'Nutrição',
-    description: 'Uma alimentação equilibrada fornece os nutrientes necessários para a saúde hormonal, energia e prevenção de doenças. Necessidades nutricionais podem variar em diferentes fases da vida (gravidez, menopausa).',
-  },
+  
 ];
 
 // --- Componente Principal da Tela ---
@@ -100,7 +96,7 @@ const HealthTopicsSingleScreen = ({ navigation }) => { // Recebe navigation se p
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={styles.safeArea.backgroundColor} />
       <ScrollView style={styles.container}>
-        <Text style={styles.screenTitle}>Tópicos de Saúde Feminina</Text>
+        <Text style={styles.screenTitle}>Bem vindo(a)! a Maia</Text>
 
         {/* Mapeia os dados para renderizar cada card */}
         {healthTopicsData.map((topic) => {
@@ -215,4 +211,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default HealthTopicsSingleScreen; // Exporta o componente da tela
+export default HealthTopicsSingleScreen; 
