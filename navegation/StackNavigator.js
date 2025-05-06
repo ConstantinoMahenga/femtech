@@ -16,6 +16,9 @@ import DoctorTabs from '../medicos/(tabs)/tabNavegation';   // Verifique o camin
 // *** IMPORTANTE: Verifique os caminhos corretos para estas telas ***
 import ChatScreen from '../pacientes/conversainterna'; // Exemplo: ../screens/ChatScreen
 import Chatbot from '../chatbot';
+import HomeScreen from '../screens/HomeScreen';
+import DetailsScreen from '../screens/DetailsScreen';
+import GroupChatScreen from '../pacientes/chatgroup';
 //import ViewDoctorProfileScreen from '../path/to/your/ViewDoctorProfileScreen'; // Exemplo: ../screens/ViewDoctorProfileScreen
 
 const Stack = createStackNavigator();
@@ -57,6 +60,16 @@ const AppNavigator = () => {
               name='ChatbotScreen'
               component={Chatbot}
             />
+
+     <Stack.Screen
+        name="GroupChatScreen"
+        component={GroupChatScreen}
+        options={{
+          // O título é definido dentro da própria tela GroupChatScreen usando navigation.setOptions
+          // Se preferir definir aqui estaticamente:
+           title: 'Chat Próximo (5km)',
+        }}
+      />
              {/* Adicione outras telas de detalhe aqui, se houver */}
 
              {/* Se DoctorTabs precisar acessar PatientTabs ou vice-versa (improvável), adicione a outra aqui também */}
@@ -69,6 +82,11 @@ const AppNavigator = () => {
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+
+            {/* <Stack.Screen name="Welcome" component={HomeScreen} /> */}
+            <Stack.Screen name="Details" component={DetailsScreen} />
+
+
           </>
         )}
       </Stack.Navigator>

@@ -17,7 +17,7 @@ import axios from 'axios';
 
 // <<< CONFIGURAÇÃO  >>>
 const sendMessageToOpenAI = async (message) => {
-  const apiKey = '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';
+  const apiKey = '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';
   const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
   try {
@@ -32,7 +32,7 @@ const sendMessageToOpenAI = async (message) => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`,
-          'HTTP-Referer': 'https://meuapp.com', // Pode ser localhost ou URL do app
+          'HTTP-Referer': 'https://meuapp.com', 
           'X-Title': 'MeuAppChatBot'
         },
       }

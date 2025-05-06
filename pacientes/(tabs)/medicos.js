@@ -2,7 +2,7 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
-  Text,
+  Text, // <--- GARANTA QUE Text está importado
   TextInput,
   TouchableOpacity,
   SafeAreaView,
@@ -13,100 +13,41 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
-} from 'react-native';
+} from 'react-native'; // <--- Verifique se Text está aqui
 import Icon from 'react-native-vector-icons/Feather';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-
-// --- Firebase Imports ---
 import { collection, query, where, getDocs, GeoPoint } from 'firebase/firestore';
-// *** AJUSTE O CAMINHO PARA SEU ARQUIVO DE CONFIG DO FIREBASE ***
-import { db } from '../../firebaseconfig'; // Exemplo: ../../firebaseconfig
-
-// --- Location and Distance Imports ---
+import { db } from '../../firebaseconfig'; // <<< AJUSTE O CAMINHO
 import * as Location from 'expo-location';
 import * as geolib from 'geolib';
 
 // --- TEMA ---
-const theme = {
-  colors: {
-    primary: '#FF69B4', // Rosa característico
-    white: '#fff',
-    text: '#333',
-    textSecondary: '#666',
-    textMuted: '#888',
-    placeholder: '#999',
-    background: '#f7f7f7',
-    border: '#eee',
-    cardBackground: '#fff',
-    error: '#D32F2F',
-  },
-  fonts: {
-    regular: Platform.OS === 'ios' ? 'System' : 'sans-serif',
-    bold: Platform.OS === 'ios' ? 'System' : 'sans-serif-bold',
-  }
-};
-// --- FIM TEMA ---
+const theme = { colors: { primary: '#FF69B4', white: '#fff', text: '#333', textSecondary: '#666', textMuted: '#888', placeholder: '#999', background: '#f7f7f7', border: '#eee', cardBackground: '#fff', error: '#D32F2F', hospitalText: '#FF69B4' }, fonts: { regular: Platform.OS === 'ios' ? 'System' : 'sans-serif', bold: Platform.OS === 'ios' ? 'System' : 'sans-serif-bold' } };
 
-// --- Função auxiliar para formatar a distância ---
-const formatDistance = (distanceInMeters) => {
-    if (distanceInMeters === null || distanceInMeters === undefined) {
-        return null; // Não exibe se a distância não foi calculada
-    }
-    if (distanceInMeters < 1000) {
-        return `Há ${Math.round(distanceInMeters)} m de distância`;
-    } else {
-        return `Há ${(distanceInMeters / 1000).toFixed(1)} km de distância`;
-    }
-};
+// --- Função formatDistance (sem alterações) ---
+const formatDistance = (distanceInMeters) => { if (distanceInMeters === null || distanceInMeters === undefined) return null; if (distanceInMeters < 1000) return `Há ${Math.round(distanceInMeters)} m de distância`; return `Há ${(distanceInMeters / 1000).toFixed(1)} km de distância`; };
 
-// --- COMPONENTE DO ITEM DA LISTA ---
+// --- COMPONENTE DoctorListItem (JSX RETIFICADO) ---
 const DoctorListItem = React.memo(({ item, navigation }) => {
-    // Assume nomes dos campos no Firestore
-    const primarySpecialty = item.medicalAreas && item.medicalAreas.length > 0
-        ? item.medicalAreas[0]
-        : 'Especialidade não informada';
+    const primarySpecialty = item.medicalAreas?.[0] || 'Especialidade não informada';
     const description = item.profile?.bio || item.description || 'Sem descrição disponível.';
     const displayDistance = formatDistance(item.distance);
+    const hospitalName = item.hospital || 'Hospital não informado';
 
-    // --- MODIFICAÇÃO AQUI: Função onPress para navegar para ChatScreen ---
-    const handlePress = () => {
-        // Validação básica dos dados necessários
-        if (!item?.id || !item?.name) {
-            console.error("Dados incompletos para iniciar chat:", item);
-            Alert.alert("Erro", "Não foi possível abrir o chat. Dados do médico incompletos.");
-            return;
-        }
-        console.log(`Navegando para ChatScreen com: ID=${item.id}, Nome=${item.name}`);
-        navigation.navigate('ChatScreen', { // Navega para ChatScreen
-            doctorId: item.id,
-            doctorName: item.name,
-            doctorImage: item.profileImageUrl || null // Passa URL da imagem ou null
-        });
-    };
-    // --- FIM DA MODIFICAÇÃO ---
+    const handlePress = () => { /* ... (lógica handlePress sem alterações) ... */ if (!item?.id || !item?.name) { console.error("Dados incompletos chat:", item); Alert.alert("Erro", "Não foi possível abrir o chat."); return; } console.log(`Navegando ChatScreen: ID=${item.id}, Nome=${item.name}`); navigation.navigate('ChatScreen', { doctorId: item.id, doctorName: item.name, doctorHospital: hospitalName, doctorImage: item.profileImageUrl || null }); };
 
     return (
-        // --- MODIFICAÇÃO AQUI: Usa a função handlePress ---
-        <TouchableOpacity
-            style={styles.doctorCard}
-            activeOpacity={0.7}
-            onPress={handlePress} // Chama a função modificada
-        >
-        {/* --- FIM DA MODIFICAÇÃO --- */}
+        // <<< RETIFICAÇÃO ESTRUTURA JSX >>>
+        <TouchableOpacity style={styles.doctorCard} activeOpacity={0.7} onPress={handlePress}>
             <View style={styles.doctorCardContent}>
                 {/* Coluna de Informações */}
                 <View style={styles.doctorInfoContainer}>
                     <Text style={styles.doctorName}>{item.name || 'Nome não disponível'}</Text>
+                    <Text style={styles.hospitalName}>{hospitalName}</Text>
                     <Text style={styles.doctorSpecialty}>{primarySpecialty}</Text>
-                    {item.medicalAreas && item.medicalAreas.length > 1 && (
-                         <Text style={styles.doctorExtraSpecialties} numberOfLines={1}>
-                             + {item.medicalAreas.slice(1).join(', ')}
-                         </Text>
-                     )}
-                    <Text style={styles.doctorDescription} numberOfLines={2} ellipsizeMode="tail">
-                        {description}
-                    </Text>
-                    {/* Exibe a Distância se disponível */}
+                    {item.medicalAreas && item.medicalAreas.length > 1 && (<Text style={styles.doctorExtraSpecialties} numberOfLines={1}>+ {item.medicalAreas.slice(1).join(', ')}</Text>)}
+                    <Text style={styles.doctorDescription} numberOfLines={2} ellipsizeMode="tail">{description}</Text>
+                    {/* Renderiza distância condicionalmente DENTRO de um Text ou View */}
                     {displayDistance && (
                         <View style={styles.distanceContainer}>
                             <MaterialCommunityIcons name="map-marker-distance" size={16} color={theme.colors.textMuted} />
@@ -114,150 +55,92 @@ const DoctorListItem = React.memo(({ item, navigation }) => {
                         </View>
                     )}
                 </View>
-
                 {/* Coluna da Imagem/Placeholder */}
-                {item.profileImageUrl ? (
-                    <Image
-                        source={{ uri: item.profileImageUrl }}
-                        style={styles.doctorImage}
-                        resizeMode="cover"
-                        onError={(e) => console.log("Erro ao carregar imagem:", item.profileImageUrl, e.nativeEvent.error)}
-                    />
-                ) : (
-                    <View style={styles.doctorImagePlaceholder}>
-                         <Icon name="user" size={30} color={theme.colors.placeholder} />
-                    </View>
-                )}
+                <View style={styles.imageContainer}>
+                  {item.profileImageUrl ? (
+                      <Image source={{ uri: item.profileImageUrl }} style={styles.doctorImage} resizeMode="cover" onError={(e) => console.log("Erro img:", e.nativeEvent.error)}/>
+                  ) : (
+                      <View style={styles.doctorImagePlaceholder}><Icon name="user" size={30} color={theme.colors.placeholder} /></View>
+                  )}
+                </View>
             </View>
         </TouchableOpacity>
+        // <<< FIM RETIFICAÇÃO >>>
     );
 });
-
 
 // --- COMPONENTE PRINCIPAL DA TELA ---
 function DoctorsScreen({ navigation }) {
   const [searchText, setSearchText] = useState('');
-  const [doctors, setDoctors] = useState([]); // Médicos brutos do Firestore
-  const [processedDoctors, setProcessedDoctors] = useState([]); // Médicos com distância, ordenados
+  const [doctors, setDoctors] = useState([]);
+  const [processedDoctors, setProcessedDoctors] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(true);
   const [errorDoctors, setErrorDoctors] = useState(null);
-
-  // Estado da Localização
   const [userLocation, setUserLocation] = useState(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState(null);
   const [loadingLocation, setLoadingLocation] = useState(true);
   const [errorLocation, setErrorLocation] = useState(null);
 
-  // --- Lógica para Buscar Médicos ---
-  const fetchDoctors = useCallback(async () => {
-      setLoadingDoctors(true);
-      setErrorDoctors(null);
-      setDoctors([]);
-      setProcessedDoctors([]);
-      console.log("Buscando médicos no Firestore...");
-      try {
-        const q = query( collection(db, "users"), where("role", "==", "medico") );
-        const querySnapshot = await getDocs(q);
-        const doctorsList = [];
-        querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          const locationData = (data.address?.coordinates && typeof data.address.coordinates.latitude === 'number' && typeof data.address.coordinates.longitude === 'number')
-              ? data.address.coordinates : null;
-          if (!locationData) { console.warn(`Médico ${doc.id} (${data.name}) sem GeoPoint válido em 'address.coordinates'.`); }
-          doctorsList.push({ id: doc.id, ...data, location: locationData });
-        });
-        console.log(`Encontrados ${doctorsList.length} médicos.`);
-        setDoctors(doctorsList);
-      } catch (err) {
-        console.error("Erro ao buscar médicos: ", err);
-        setErrorDoctors("Não foi possível carregar os médicos. Verifique sua conexão.");
-      } finally { setLoadingDoctors(false); }
-    }, []);
-
-  // --- 1. Busca Permissão e Coordenadas de Localização ---
-  useEffect(() => {
-    const requestLocation = async () => {
-      setLoadingLocation(true); setErrorLocation(null); console.log("Solicitando permissão de localização...");
-      try {
-        let { status } = await Location.requestForegroundPermissionsAsync();
-        setLocationPermissionStatus(status); console.log("Status da permissão:", status);
-        if (status !== 'granted') { setErrorLocation('Permissão de localização necessária para mostrar distâncias.'); setLoadingLocation(false); return; }
-        console.log("Obtendo posição atual...");
-        let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-        setUserLocation({ latitude: location.coords.latitude, longitude: location.coords.longitude });
-        console.log("Localização do usuário obtida:", location.coords); setErrorLocation(null);
-      } catch (err) { console.error('Erro ao obter localização:', err); setErrorLocation('Não foi possível obter sua localização.'); }
-      finally { setLoadingLocation(false); }
-    };
-    requestLocation();
-  }, []);
-
-  // --- 2. Busca Médicos ---
+  // --- Lógica de busca e processamento (sem alterações) ---
+  const fetchDoctors = useCallback(async () => { /* ... (igual) ... */ setLoadingDoctors(true); setErrorDoctors(null); setDoctors([]); setProcessedDoctors([]); console.log("Buscando médicos..."); try { const q = query( collection(db, "users"), where("role", "==", "medico") ); const querySnapshot = await getDocs(q); const doctorsList = []; querySnapshot.forEach((doc) => { const data = doc.data(); const locationData = (data.address?.coordinates instanceof GeoPoint) ? data.address.coordinates : null; if (!locationData) { console.warn(`Médico ${doc.id} (${data.name}) sem GeoPoint.`); } doctorsList.push({ id: doc.id, ...data, location: locationData, hospital: data.hospital || null }); }); console.log(`Encontrados ${doctorsList.length} médicos.`); setDoctors(doctorsList); } catch (err) { console.error("Erro buscar médicos: ", err); setErrorDoctors("Não foi possível carregar médicos."); } finally { setLoadingDoctors(false); } }, []);
+  useEffect(() => { const requestLocation = async () => { setLoadingLocation(true); setErrorLocation(null); console.log("Solicitando permissão..."); try { let { status } = await Location.requestForegroundPermissionsAsync(); setLocationPermissionStatus(status); console.log("Permissão:", status); if (status !== 'granted') { setErrorLocation('Permissão necessária.'); setLoadingLocation(false); return; } console.log("Obtendo posição..."); let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }); setUserLocation({ latitude: location.coords.latitude, longitude: location.coords.longitude }); console.log("Localização obtida:", location.coords); setErrorLocation(null); } catch (err) { console.error('Erro localização:', err); setErrorLocation('Não foi possível obter localização.'); } finally { setLoadingLocation(false); } }; requestLocation(); }, []);
   useEffect(() => { fetchDoctors(); }, [fetchDoctors]);
+  useEffect(() => { if (loadingLocation) return; if (doctors.length > 0) { console.log("Processando distâncias..."); const doctorsWithDistance = doctors.map(doctor => { let distance = null; if (userLocation && doctor.location) { try { distance = geolib.getDistance( userLocation, { latitude: doctor.location.latitude, longitude: doctor.location.longitude } ); } catch(calcError) { console.error(`Erro calc dist ${doctor.id}:`, calcError); distance = null; } } return { ...doctor, distance }; }).sort((a, b) => { if (a.distance === null && b.distance === null) return 0; if (a.distance === null) return 1; if (b.distance === null) return -1; return a.distance - b.distance; }); console.log("Distâncias processadas."); setProcessedDoctors(doctorsWithDistance); } else { setProcessedDoctors([]); } }, [userLocation, doctors, loadingLocation]);
+  const filteredDoctors = useMemo(() => { const listToFilter = processedDoctors; if (!searchText.trim()) return listToFilter; const lowerCaseSearch = searchText.toLowerCase(); return listToFilter.filter(doctor => { const nameMatch = doctor.name?.toLowerCase().includes(lowerCaseSearch); const hospitalMatch = doctor.hospital?.toLowerCase().includes(lowerCaseSearch); const specialtyMatch = doctor.medicalAreas?.some(area => area.toLowerCase().includes(lowerCaseSearch)); const descriptionMatch = doctor.profile?.bio?.toLowerCase().includes(lowerCaseSearch) || doctor.description?.toLowerCase().includes(lowerCaseSearch); return nameMatch || hospitalMatch || specialtyMatch || descriptionMatch; }); }, [searchText, processedDoctors]);
+  const renderItem = useCallback(({ item }) => ( <DoctorListItem item={item} navigation={navigation} /> ), [navigation]);
 
-  // --- 3. Calcula Distâncias e Ordena ---
-  useEffect(() => {
-    if (loadingLocation) return;
-    if (doctors.length > 0) {
-       console.log("Processando distâncias...");
-       const doctorsWithDistance = doctors.map(doctor => {
-           let distance = null;
-           if (userLocation && doctor.location) {
-             try { distance = geolib.getDistance( userLocation, { latitude: doctor.location.latitude, longitude: doctor.location.longitude } ); }
-             catch(calcError) { console.error(`Erro calc dist ${doctor.id}:`, calcError); distance = null; }
-           }
-           return { ...doctor, distance };
-         }).sort((a, b) => {
-           if (a.distance === null && b.distance === null) return 0;
-           if (a.distance === null) return 1;
-           if (b.distance === null) return -1;
-           return a.distance - b.distance;
-         });
-       console.log("Distâncias processadas e ordenadas.");
-       setProcessedDoctors(doctorsWithDistance);
-    } else { setProcessedDoctors([]); }
-  }, [userLocation, doctors, loadingLocation]);
-
-  // --- 4. Filtra a Lista Processada ---
-  const filteredDoctors = useMemo(() => {
-    const listToFilter = processedDoctors;
-    if (!searchText.trim()) return listToFilter;
-    const lowerCaseSearch = searchText.toLowerCase();
-    return listToFilter.filter(doctor => {
-        const nameMatch = doctor.name?.toLowerCase().includes(lowerCaseSearch);
-        const specialtyMatch = doctor.medicalAreas?.some(area => area.toLowerCase().includes(lowerCaseSearch));
-        const descriptionMatch = doctor.profile?.bio?.toLowerCase().includes(lowerCaseSearch) || doctor.description?.toLowerCase().includes(lowerCaseSearch);
-        return nameMatch || specialtyMatch || descriptionMatch;
-      });
-  }, [searchText, processedDoctors]);
-
-  // Renderiza cada item - Passa navigation para DoctorListItem
-  const renderItem = useCallback(({ item }) => (
-    <DoctorListItem item={item} navigation={navigation} /> // Passa navigation aqui
-  ), [navigation]); // Depende de navigation
-
-  // --- Determina Estado Geral de Carregamento ---
   const isLoading = loadingLocation || loadingDoctors;
 
-  // --- Lógica de Renderização do Conteúdo Principal ---
+  // --- Lógica de Renderização do Conteúdo Principal (RETIFICADA) ---
   const renderContent = () => {
-    if (isLoading) return <View style={styles.centeredMessageContainer}><ActivityIndicator size="large" color={theme.colors.primary} /><Text style={styles.loadingText}>{loadingLocation ? 'Obtendo localização...' : 'Carregando médicos...'}</Text></View>;
-    if (errorDoctors) return <View style={styles.centeredMessageContainer}><Icon name="alert-circle" size={40} color={theme.colors.error} /><Text style={styles.errorText}>{errorDoctors}</Text><TouchableOpacity style={styles.retryButton} onPress={fetchDoctors}><Text style={styles.retryButtonText}>Tentar Novamente</Text></TouchableOpacity></View>;
+    // <<< RETIFICAÇÃO: Envolve textos de loading/erro em <Text> >>>
+    if (isLoading) {
+        return (
+            <View style={styles.centeredMessageContainer}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+                <Text style={styles.loadingText}>
+                    {loadingLocation ? 'Obtendo localização...' : 'Carregando médicos...'}
+                </Text>
+            </View>
+        );
+    }
+    if (errorDoctors) {
+        return (
+            <View style={styles.centeredMessageContainer}>
+                <Icon name="alert-circle" size={40} color={theme.colors.error} />
+                <Text style={styles.errorText}>{errorDoctors}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={fetchDoctors}>
+                    <Text style={styles.retryButtonText}>Tentar Novamente</Text>
+                </TouchableOpacity>
+            </View>
+        );
+    }
+    // <<< FIM RETIFICAÇÃO >>>
 
+    // Renderiza FlatList normalmente
     return (
         <FlatList
           data={filteredDoctors}
-          renderItem={renderItem} // renderItem agora tem acesso a navigation
+          renderItem={renderItem}
           keyExtractor={item => item.id}
           contentContainerStyle={styles.listContainer}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyListContainer}>
-                <Text style={styles.emptyListText}>{processedDoctors.length === 0 ? 'Nenhum médico disponível' : 'Nenhum médico encontrado'}</Text>
-                {processedDoctors.length > 0 && searchText.trim() && <Text style={styles.emptyListSubText}>Verifique o termo pesquisado.</Text>}
+                {/* <<< RETIFICAÇÃO: Garante que textos estão em <Text> >>> */}
+                <Text style={styles.emptyListText}>
+                    {processedDoctors.length === 0 ? 'Nenhum médico disponível' : 'Nenhum médico encontrado'}
+                </Text>
+                {processedDoctors.length > 0 && searchText.trim() && (
+                    <Text style={styles.emptyListSubText}>
+                        Verifique o termo pesquisado.
+                    </Text>
+                )}
+                {/* <<< FIM RETIFICAÇÃO >>> */}
             </View>}
           initialNumToRender={10} maxToRenderPerBatch={5} windowSize={10}
-        /> );
+        />
+    );
   }
 
   return (
@@ -265,16 +148,25 @@ function DoctorsScreen({ navigation }) {
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
       {/* Barra de Busca */}
       <View style={styles.searchContainer}>
-          <TextInput style={styles.searchInput} placeholder="Procurar por nome, especialidade..." placeholderTextColor={theme.colors.placeholder} value={searchText} onChangeText={setSearchText} returnKeyType="search" clearButtonMode="while-editing" editable={!isLoading} />
+          <TextInput style={styles.searchInput} placeholder="Procurar por nome, hospital, área..." placeholderTextColor={theme.colors.placeholder} value={searchText} onChangeText={setSearchText} returnKeyType="search" clearButtonMode="while-editing" editable={!isLoading} />
           <Icon name="search" size={20} color={theme.colors.textSecondary} style={styles.searchIcon} />
       </View>
       {/* Banner de Informação/Erro de Localização */}
+      {/* <<< RETIFICAÇÃO: Garante que errorLocation (string) está em <Text> >>> */}
       {!loadingLocation && errorLocation && (
         <View style={styles.infoBanner}>
             <Icon name="info" size={18} color={theme.colors.textSecondary} style={{ marginRight: 8 }}/>
-            {typeof errorLocation === 'string' && <Text style={styles.infoBannerText}>{errorLocation}</Text>}
-            {locationPermissionStatus === 'denied' && <TouchableOpacity style={styles.settingsLink} onPress={() => Linking.openSettings()}><Text style={styles.settingsLinkText}>Abrir Config.</Text></TouchableOpacity>}
-        </View> )}
+            {/* Renderiza o texto de erro DENTRO de um Text */}
+            <Text style={styles.infoBannerText}>{typeof errorLocation === 'string' ? errorLocation : 'Erro de localização.'}</Text>
+            {locationPermissionStatus === 'denied' && (
+                <TouchableOpacity style={styles.settingsLink} onPress={() => Linking.openSettings()}>
+                    <Text style={styles.settingsLinkText}>Abrir Config.</Text>
+                </TouchableOpacity>
+            )}
+        </View>
+      )}
+      {/* <<< FIM RETIFICAÇÃO >>> */}
+
       {/* Área Principal de Conteúdo */}
       {renderContent()}
     </SafeAreaView>
@@ -291,12 +183,14 @@ const styles = StyleSheet.create({
   doctorCard: { backgroundColor: theme.colors.cardBackground, borderRadius: 12, marginBottom: 15, elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3 },
   doctorCardContent: { flexDirection: 'row', padding: 15, alignItems: 'center' },
   doctorInfoContainer: { flex: 1, marginRight: 15 },
-  doctorName: { fontSize: 17, fontFamily: theme.fonts.bold, fontWeight: Platform.OS === 'android' ? 'bold' : '600', color: theme.colors.text, marginBottom: 4 },
+  doctorName: { fontSize: 17, fontFamily: theme.fonts.bold, fontWeight: Platform.OS === 'android' ? 'bold' : '600', color: theme.colors.text, marginBottom: 2 },
+  hospitalName: { fontSize: 14, fontFamily: theme.fonts.regular, color: theme.colors.hospitalText, marginBottom: 5, fontWeight: '500' },
   doctorSpecialty: { fontSize: 14, fontFamily: theme.fonts.regular, color: theme.colors.primary, marginBottom: 2, fontWeight: '500' },
   doctorExtraSpecialties: { fontSize: 12, fontFamily: theme.fonts.regular, color: theme.colors.textSecondary, marginBottom: 6, fontStyle: 'italic' },
   doctorDescription: { fontSize: 13, fontFamily: theme.fonts.regular, color: theme.colors.textMuted, lineHeight: 18, marginTop: 4, marginBottom: 8 },
   distanceContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
-  distanceText: { fontSize: 13, fontFamily: theme.fonts.regular, color: theme.colors.primary, marginLeft: 5, fontWeight: '500' }, // Distância em Rosa
+  distanceText: { fontSize: 13, fontFamily: theme.fonts.regular, color: theme.colors.primary, marginLeft: 5, fontWeight: '500' },
+  imageContainer: { /* Adicionado para envolver imagem/placeholder */ },
   doctorImage: { width: 75, height: 75, borderRadius: 37.5, backgroundColor: theme.colors.border },
   doctorImagePlaceholder: { width: 75, height: 75, borderRadius: 37.5, backgroundColor: theme.colors.border, justifyContent: 'center', alignItems: 'center' },
   centeredMessageContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 30 },

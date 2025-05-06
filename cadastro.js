@@ -1,4 +1,4 @@
-// RegisterScreen.jsx
+// RegisterScreen_Patient.jsx (Renomeie o ficheiro se desejar)
 import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
@@ -15,13 +15,13 @@ import {
   Alert,
 } from 'react-native';
 import { MaterialIcons as Icon } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
+// Removido: import { Picker } from '@react-native-picker/picker';
 import * as Location from 'expo-location';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc, serverTimestamp, GeoPoint } from 'firebase/firestore';
 import { auth, db } from './firebaseconfig'; // <<< VERIFIQUE O CAMINHO
 
-// --- TEMA ---
+// --- TEMA (Mantido) ---
 const theme = {
   colors: {
     primary: '#FF69B4', text: '#333', placeholder: '#888', background: '#fff',
@@ -30,29 +30,17 @@ const theme = {
   },
 };
 
-// --- LISTAS ---
-const medicalAreasList = [
- 'Ciclo Menstrual', 'Gravidez', 'Fertilidade', 'Menopausa',
-  'Bem-Estar Íntimo', 'Doenças Comuns', 'Prevenção',
-  'Saúde Mental', 'Nutrição', 'Exercícios',
-];
 
-
-//Outras areas
-  const Area=['Ginecologia e Obstetrícia', 'Mastologia', 'Reprodução Humana', 'Uroginecologia',
-  'Endocrinologia Ginecológica', 'Oncologia Ginecológica', 'Saúde Mental Perinatal',
-  'Medicina Fetal', 'Sexologia Clínica',];
-
-// --- COMPONENTES AUXILIARES ---
+// --- COMPONENTES AUXILIARES (Mantido) ---
 const AvatarIcon = ({ iconName, size = 50, color = theme.colors.white, backgroundColor = theme.colors.primary }) => (
   <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2, backgroundColor }]}>
     <Icon name={iconName} size={size * 0.6} color={color} />
   </View>
 );
 
-// --- COMPONENTE PRINCIPAL ---
-function RegisterScreen({ navigation }) {
-  // --- ESTADOS ---
+// --- COMPONENTE PRINCIPAL (Foco em Paciente) ---
+function RegisterScreenPatient({ navigation }) { // Nome do componente atualizado
+  // --- ESTADOS (Removido userType, selectedAreas, description) ---
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -63,17 +51,10 @@ function RegisterScreen({ navigation }) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [focusedInput, setFocusedInput] = useState(null);
-  const [userType, setUserType] = useState('paciente');
-  const [selectedAreas, setSelectedAreas] = useState(
-    medicalAreasList.reduce((acc, area) => { acc[area] = false; return acc; }, {})
-  );
-  // <<< NOVO ESTADO PARA DESCRIÇÃO >>>
-  const [description, setDescription] = useState('');
-  // <<< FIM NOVO ESTADO >>>
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // --- FUNÇÕES (Localização, etc. - Mantidas) ---
-  const requestLocationPermission = async () => { /* ...código mantido... */
+  // --- FUNÇÕES (Localização - Mantidas) ---
+  const requestLocationPermission = async () => {
     let { status } = await Location.requestForegroundPermissionsAsync();
     if (status !== 'granted') {
       setLocationError('Permissão de localização negada.');
@@ -82,7 +63,7 @@ function RegisterScreen({ navigation }) {
     }
     return true;
   };
-  const fetchAddress = async () => { /* ...código mantido... */
+  const fetchAddress = async () => {
     setLocationLoading(true);
     setLocationError(null);
     setFetchedAddress('');
@@ -108,17 +89,16 @@ function RegisterScreen({ navigation }) {
     } finally { setLocationLoading(false); }
   };
 
-  // --- FUNÇÃO DE SUBMISSÃO (Cadastro - Atualizada) ---
+  // --- FUNÇÃO DE SUBMISSÃO (Cadastro de Paciente) ---
   const handleSubmit = async () => {
     // Validações
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) { Alert.alert('Erro', 'E-mail inválido.'); return; }
-    if (!name || !email || !phoneNumber || !fetchedAddress || !password || !confirmPassword || !userType) { Alert.alert('Erro', 'Preencha todos os campos obrigatórios e busque o endereço.'); return; }
+    // Removido !userType da validação
+    if (!name || !email || !phoneNumber || !fetchedAddress || !password || !confirmPassword) { Alert.alert('Erro', 'Preencha todos os campos obrigatórios e busque o endereço.'); return; }
     if (password !== confirmPassword) { Alert.alert('Erro', 'As senhas não coincidem.'); return; }
     if (password.length < 6) { Alert.alert('Erro', 'A senha deve ter no mínimo 6 caracteres.'); return; }
-    if (userType === 'medico' && !Object.values(selectedAreas).some(isSelected => isSelected)) { Alert.alert('Erro', 'Médico(a) deve selecionar ao menos uma área.'); return; }
-    // <<< Opcional: Validar se a descrição foi preenchida para médico >>>
-    // if (userType === 'medico' && !description.trim()) { Alert.alert('Erro', 'Médico(a) deve preencher a descrição profissional.'); return; }
+    // Removida validação de áreas médicas
 
     setIsSubmitting(true);
 
@@ -127,7 +107,7 @@ function RegisterScreen({ navigation }) {
       const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), password);
       const user = userCredential.user;
 
-      // 2. Preparar dados para o Firestore
+      // 2. Preparar dados para o Firestore (APENAS Paciente)
       const userData = {
         uid: user.uid,
         name,
@@ -137,23 +117,18 @@ function RegisterScreen({ navigation }) {
           formatted: fetchedAddress,
           coordinates: coords ? new GeoPoint(coords.latitude, coords.longitude) : null,
         },
-        role: userType, // Salva 'paciente' ou 'medico'
+        role: 'paciente', // Define diretamente como paciente
         createdAt: serverTimestamp(),
-        // <<< ADICIONA DADOS DO MÉDICO CONDICIONALMENTE >>>
-        ...(userType === 'medico' && {
-          medicalAreas: Object.keys(selectedAreas).filter(area => selectedAreas[area]),
-          description: description.trim(), // Salva a descrição (removendo espaços extras)
-        }),
-        // <<< FIM DADOS DO MÉDICO >>>
+        // Removida a parte condicional de médico
       };
 
       // 3. Salvar dados no Firestore
       const userDocRef = doc(db, "users", user.uid);
       await setDoc(userDocRef, userData);
 
-      console.log('Usuário registrado com sucesso! UID:', user.uid, 'Role:', userType);
-      Alert.alert('Sucesso!', 'Conta criada com sucesso!');
-      navigation.navigate('Login');
+      console.log('Paciente registrado com sucesso! UID:', user.uid);
+      Alert.alert('Sucesso!', 'Conta de paciente criada com sucesso!');
+      navigation.navigate('Login'); // Ou para uma tela de confirmação/dashboard de paciente
 
     } catch (error) {
       console.error("Erro no cadastro:", error);
@@ -166,15 +141,10 @@ function RegisterScreen({ navigation }) {
     }
   };
 
-  // --- OUTRAS FUNÇÕES (Mantidas) ---
+  // --- OUTRAS FUNÇÕES (Mantidas, exceto toggleAreaSelection) ---
   const goToLogin = () => navigation.navigate('Login');
   const handleFocus = (inputName) => setFocusedInput(inputName);
   const handleBlur = () => setFocusedInput(null);
-  const toggleAreaSelection = (areaName) => {
-    setSelectedAreas(prev => ({ ...prev, [areaName]: !prev[areaName] }));
-  };
-
-  // --- RENDERIZAÇÃO ---
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={theme.colors.background} />
@@ -184,7 +154,8 @@ function RegisterScreen({ navigation }) {
       >
         <ScrollView contentContainerStyle={styles.scrollViewContent} keyboardShouldPersistTaps="handled">
           <View style={styles.container}>
-            <AvatarIcon iconName="person-add-alt-1" />
+            {/* Ícone pode ser diferente se quiser: e.g., 'person-add' */}
+            <AvatarIcon iconName="person-add" />
             <Text style={styles.title}>Criar Conta</Text>
 
             <View style={styles.form}>
@@ -212,7 +183,7 @@ function RegisterScreen({ navigation }) {
                   editable={!isSubmitting}
               />
 
-              {/* Endereço Automático */}
+              {/* Endereço Automático (Mantido) */}
               <View style={styles.addressContainer}>
                 <Text style={styles.label}>Endereço:</Text>
                 <TouchableOpacity
@@ -227,66 +198,6 @@ function RegisterScreen({ navigation }) {
                 {!locationLoading && !fetchedAddress && !locationError && <Text style={styles.placeholderText}>Clique para buscar seu endereço.</Text>}
               </View>
 
-              {/* Tipo de Usuário */}
-              <Text style={styles.label}>Eu sou:</Text>
-              <View style={[styles.pickerContainer, isSubmitting && styles.disabledBackground]}>
-                  <Picker
-                      selectedValue={userType}
-                      onValueChange={(itemValue) => setUserType(itemValue)}
-                      style={styles.picker} dropdownIconColor={theme.colors.primary}
-                      enabled={!isSubmitting}
-                  >
-                      <Picker.Item label="Paciente" value="paciente" />
-                      <Picker.Item label="Médico(a)" value="medico" />
-                  </Picker>
-              </View>
-
-              {/* Áreas Médicas (Condicional) */}
-              {userType === 'medico' && (
-                  <View style={[styles.checklistContainer, isSubmitting && styles.disabledBackground]}>
-                      <Text style={styles.label}>Selecione suas áreas de atuação:</Text>
-                      {Object.keys(selectedAreas).map((area) => (
-                          <TouchableOpacity
-                              key={area} style={styles.checklistItem}
-                              onPress={() => !isSubmitting && toggleAreaSelection(area)}
-                              activeOpacity={isSubmitting ? 1 : 0.7} disabled={isSubmitting}
-                          >
-                              <Icon
-                                  name={selectedAreas[area] ? 'check-box' : 'check-box-outline-blank'}
-                                  size={24} color={selectedAreas[area] ? theme.colors.primary : theme.colors.iconColor}
-                                  style={styles.checklistIcon}
-                              />
-                              <Text style={styles.checklistLabel}>{area}</Text>
-                          </TouchableOpacity>
-                      ))}
-                  </View>
-              )}
-
-              {/* <<< CAMPO DE DESCRIÇÃO (Condicional) >>> */}
-              {userType === 'medico' && (
-                <>
-                  <Text style={styles.label}>Descrição Profissional (Opcional):</Text>
-                  <TextInput
-                      style={[
-                          styles.input,
-                          styles.textArea, // Estilo adicional para altura
-                          focusedInput === 'description' && styles.inputFocused,
-                          isSubmitting && styles.disabledBackground
-                      ]}
-                      placeholder="Descreva sua experiência, foco de atuação, etc."
-                      value={description}
-                      onChangeText={setDescription}
-                      onFocus={() => handleFocus('description')}
-                      onBlur={handleBlur}
-                      multiline={true} // Permite múltiplas linhas
-                      numberOfLines={4} // Sugestão inicial de altura
-                      editable={!isSubmitting}
-                      textAlignVertical="top" // Garante que o texto comece no topo em Android
-                  />
-                </>
-              )}
-              {/* <<< FIM CAMPO DE DESCRIÇÃO >>> */}
-
 
               {/* Senha */}
               <TextInput
@@ -300,7 +211,7 @@ function RegisterScreen({ navigation }) {
                   style={[styles.input, focusedInput === 'confirmPassword' && styles.inputFocused, isSubmitting && styles.disabledBackground]}
                   placeholder="Confirmar Senha" value={confirmPassword} onChangeText={setConfirmPassword}
                   secureTextEntry onFocus={() => handleFocus('confirmPassword')} onBlur={handleBlur} returnKeyType="done"
-                  onSubmitEditing={handleSubmit} // Tenta submeter ao pressionar 'done' aqui
+                  onSubmitEditing={handleSubmit}
                   editable={!isSubmitting}
               />
 
@@ -323,23 +234,18 @@ function RegisterScreen({ navigation }) {
   );
 }
 
-// --- ESTILOS ---
+// --- ESTILOS (Mantidos - remover estilos não usados se quiser otimizar) ---
 const styles = StyleSheet.create({
-  // ... (estilos anteriores mantidos)
   safeArea: { flex: 1, backgroundColor: theme.colors.background },
   keyboardAvoiding: { flex: 1 },
   scrollViewContent: { flexGrow: 1, justifyContent: 'center' },
   container: { alignItems: 'center', paddingHorizontal: 20, paddingVertical: 30 },
   avatar: { marginBottom: 15, justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.2, shadowRadius: 3, elevation: 4 },
-  title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 20 },
+  title: { fontSize: 24, fontWeight: 'bold', color: theme.colors.text, marginBottom: 20, textAlign: 'center' }, // Centralizado
   form: { width: '100%' },
   input: { backgroundColor: theme.colors.white, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, paddingHorizontal: 15, paddingVertical: 12, fontSize: 16, color: theme.colors.text, marginBottom: 15, width: '100%' },
   inputFocused: { borderColor: theme.colors.borderFocused, borderWidth: 1.5 },
-  // <<< Estilo para Text Area (Descrição) >>>
-  textArea: {
-    minHeight: 100, // Define uma altura mínima
-    textAlignVertical: 'top', // Alinha texto no topo (Android)
-  },
+  textArea: { minHeight: 100, textAlignVertical: 'top' }, // Mantido caso use em outro lugar, mas não usado aqui
   label: { fontSize: 16, color: theme.colors.text, marginBottom: 8, fontWeight: '500', alignSelf: 'flex-start' },
   addressContainer: { marginBottom: 15, width: '100%' },
   buttonOutline: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: theme.colors.white, borderWidth: 1.5, borderColor: theme.colors.primary, borderRadius: 8, paddingVertical: 10, paddingHorizontal: 15, marginBottom: 10 },
@@ -348,20 +254,15 @@ const styles = StyleSheet.create({
   addressText: { fontSize: 15, color: theme.colors.text, marginTop: 5, paddingHorizontal: 5, fontStyle: 'italic' },
   placeholderText: { fontSize: 14, color: theme.colors.placeholder, marginTop: 5, paddingHorizontal: 5, fontStyle: 'italic', textAlign: 'center' },
   errorText: { fontSize: 14, color: theme.colors.error, marginTop: 5, paddingHorizontal: 5, fontWeight: 'bold' },
-  pickerContainer: { borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, marginBottom: 15, backgroundColor: theme.colors.white, overflow: 'hidden' },
-  picker: { width: '100%', height: Platform.OS === 'ios' ? 180 : 50, color: theme.colors.text },
-  checklistContainer: { width: '100%', marginBottom: 15, borderWidth: 1, borderColor: theme.colors.border, borderRadius: 8, padding: 15, backgroundColor: theme.colors.lightGray },
-  checklistItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8 },
-  checklistIcon: { marginRight: 10 },
-  checklistLabel: { fontSize: 16, color: theme.colors.text, flex: 1 },
+  // Removido: pickerContainer, picker, checklistContainer, checklistItem, checklistIcon, checklistLabel
   button: { backgroundColor: theme.colors.primary, paddingVertical: 12, paddingHorizontal: 20, borderRadius: 25, alignItems: 'center', marginTop: 20, marginBottom: 15, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 3, elevation: 5, height: 48, justifyContent: 'center' },
   buttonText: { color: theme.colors.white, fontSize: 16, fontWeight: 'bold' },
-  buttonDisabled: { opacity: 0.6, /* backgroundColor: theme.colors.lightGray */ }, // Opacidade já causa efeito visual
+  buttonDisabled: { opacity: 0.6 },
   disabledBackground: { backgroundColor: '#f5f5f5', opacity: 0.7 },
   linkContainer: { marginTop: 10, alignItems: 'center' },
   linkText: { color: theme.colors.primary, fontSize: 14, textDecorationLine: 'underline' },
-  linkDisabled: { color: theme.colors.placeholder, textDecorationLine: 'none' }, // Estilo para link desabilitado
+  linkDisabled: { color: theme.colors.placeholder, textDecorationLine: 'none' },
 });
 
 // --- EXPORTAÇÃO ---
-export default RegisterScreen;
+export default RegisterScreenPatient; // Nome do componente atualizado

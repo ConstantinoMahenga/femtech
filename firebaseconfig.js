@@ -2,24 +2,35 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, initializeAuth, getReactNativePersistence } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID
+} from '@env';
 
+// Configurações do Firebase
 const firebaseConfig = {
-    apiKey: "AIzaSyArDDItCmEVTfWH8DCsR34RsH3Yx4hav34",
-    authDomain: "projecto2-987c9.firebaseapp.com",
-    projectId: "projecto2-987c9",
-    storageBucket: "projecto2-987c9.firebasestorage.app",
-    messagingSenderId: "1020053584853",
-    appId: "1:1020053584853:web:8548018f08302f629e5b5c",
-    measurementId: "G-JZQHNTDRHR"
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID,
 };
 
+// Inicializar Firebase App
 const app = initializeApp(firebaseConfig);
 
-// Use initializeAuth com persistência
+// Inicializar Auth com persistência usando AsyncStorage
 const auth = initializeAuth(app, {
   persistence: getReactNativePersistence(AsyncStorage)
 });
 
+// Inicializar Firestore
 const db = getFirestore(app);
 
+// Exportar auth e db
 export { auth, db };
