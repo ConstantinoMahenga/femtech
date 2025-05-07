@@ -16,10 +16,13 @@ import DoctorTabs from '../medicos/(tabs)/tabNavegation';   // Verifique o camin
 // *** IMPORTANTE: Verifique os caminhos corretos para estas telas ***
 import ChatScreen from '../pacientes/conversainterna'; // Exemplo: ../screens/ChatScreen
 import Chatbot from '../chatbot';
-import HomeScreen from '../screens/HomeScreen';
+
 import DetailsScreen from '../screens/DetailsScreen';
 import GroupChatScreen from '../pacientes/chatgroup';
 //import ViewDoctorProfileScreen from '../path/to/your/ViewDoctorProfileScreen'; // Exemplo: ../screens/ViewDoctorProfileScreen
+
+
+import ContactFormScreen from '../pacientes/formulario';
 
 const Stack = createStackNavigator();
 
@@ -82,8 +85,9 @@ const AppNavigator = () => {
             <Stack.Screen name="Welcome" component={WelcomeScreen} />
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+            <Stack.Screen name="ContactForm" component={ContactFormScreen} />
 
-            {/* <Stack.Screen name="Welcome" component={HomeScreen} /> */}
+           
             <Stack.Screen name="Details" component={DetailsScreen} />
 
 

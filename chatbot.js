@@ -18,6 +18,8 @@ import axios from 'axios';
 // <<< CONFIGURAÇÃO  >>>
 const sendMessageToOpenAI = async (message) => {
   const apiKey = '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';
+
+  // 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
   const endpoint = 'https://openrouter.ai/api/v1/chat/completions';
 
   try {

@@ -56,10 +56,10 @@ const ChatListItem = React.memo(({ item, onPress, currentUserId }) => {
             <View style={styles.avatarContainer}>
                 {imageUrl ? (<Image source={{ uri: imageUrl }} style={styles.profileImage} />) : (<View style={[styles.initialsCircle, styles.userInitialsCircle]}><Text style={[styles.initialsText, styles.userInitialsText]}>{initial}</Text></View>)}
             </View><View style={styles.textContainer}>
-                <Text style={styles.participantName}>{name}</Text>
-                <Text style={styles.lastMessage} numberOfLines={1} ellipsizeMode="tail">{displayMessage}</Text>
+                <Text style={styles.participantName}>{String(name)}</Text>
+                <Text style={styles.lastMessage} numberOfLines={1} ellipsizeMode="tail">{String(displayMessage)}</Text>
             </View><View style={styles.metaContainer}>
-                <Text style={styles.timestamp}>{timestamp}</Text>
+                <Text style={styles.timestamp}>{String(timestamp)}</Text>
             </View>
         </TouchableOpacity>
         // <<< FIM DA RETIFICAÇÃO >>>

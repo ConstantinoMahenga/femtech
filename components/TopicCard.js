@@ -56,7 +56,7 @@ const TopicCard = ({ topic, onPress, onDetailsPress }) => {
         style={styles.headerButton}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{topic.title}</Text>
+          <Text style={styles.title}>{String(topic.title)}</Text>
           <Animated.View style={{
             transform: [{
               rotate: heightAnim.interpolate({
@@ -80,7 +80,7 @@ const TopicCard = ({ topic, onPress, onDetailsPress }) => {
         overflow: 'hidden'
       }}>
         <View style={styles.content}>
-          <Text style={styles.description}>{topic.description}</Text>
+          <Text style={styles.description}>{String(topic.description)}</Text>
           <TouchableOpacity 
             onPress={onDetailsPress} 
             style={styles.button}
